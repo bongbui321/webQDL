@@ -1,4 +1,3 @@
-
 const vendorID = 0x05c6;
 const productID = 0x9008;
 const QDL_USB_CLASS = 0xff;
@@ -42,13 +41,13 @@ export class qdlDevice {
       }
       if (endpoint.direction === "in") {
         if (this.epIn === null) {
-          this.epIn = endpoint.endpointNumber;
+          this.epIn = endpoint;
         } else {
           throw new UsbError("Interface has multiple IN endpoints");
         }
       } else if (endpoint.direction === "out") {
         if (this.epOut === null) {
-          this.epOut = endpoint.endpointNumber;
+          this.epOut = endpoint;
         } else {
           throw new UsbError("Interface has multiple OUT endpoints");
         }
@@ -102,7 +101,44 @@ export class qdlDevice {
 
       this._registeredUsbListeners = true;
     }
-
     await this._validateAndConnectDevice();
+  }
+
+  async _usbRead(resplen = null){
+    let respData = { text : "" };
+
+    if (!(resplen === null)) { resplen = this.epIn.packetSize; }
+
+    while (respData.text.length < resplen) {
+      try {
+        let respPacket = await this.device?.transferIn(this.epIn.endpointNumber, resplen);
+        respData.text += respPacket.data;
+      } catch (error) {
+        if (error.includes("timed out")) {
+          console.error("Timed out");
+          return new TextDecoder().endcode("");
+        } else if (error.includes("Overflow")) {
+          console.error("USB Overflow");
+          return new TextDecoder().endcode("");
+        }
+      }
+    }
+    return respData;
+  }
+
+  async _usbWrite(cmd, pktSize=null) {
+    if (!(pktSize === null)) { pktSize = this.epOut.packetSize; }
+    let cmdPacket = new TextDecoder().encode(cmd);
+    let offset = 0;
+    while (offset < cmdPacket.length){
+      try {
+        await this.device.transferOut(this.epOut.endpointNumber, cmdPacket.slice(offset, offset + pktSize));
+        offset += pktSize;
+      } catch (error) {
+        console.error(error);
+        return false;
+      }
+    }
+    return true;
   }
 }
