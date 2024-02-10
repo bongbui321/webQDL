@@ -1,6 +1,7 @@
 'use client';
 
 import {qdlDevice} from "@/utils/qdl";
+import { useRef } from 'react'
 
 function Header() {
   return <h1>Flash Qualcom device</h1>
