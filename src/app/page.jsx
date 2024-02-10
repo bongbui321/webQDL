@@ -2,17 +2,20 @@
 
 import {qdlDevice} from "@/utils/qdl";
 
-const qdldevice = new qdlDevice();
-
 function Header() {
   return <h1>Flash Qualcom device</h1>
 };
 
 export default function HomePage() {
+  const qdldevice = useRef(new qdlDevice());
+  const handleConnectClick = () => {
+    qdldevice.current.connect();
+  };
+
   return (
   <div>
     <Header />
-    <button onClick={qdldevice.connect}>Connect</button>
+    <button onClick={handleConnectClick}>Connect</button>
   </div>
   )
 }
