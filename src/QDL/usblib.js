@@ -114,14 +114,14 @@ export class usbClass {
   }
 
   async _usbRead(resplen = null){
-    let respData = { text : "" };
+    let respData = { text : "", };
 
     if ((resplen === null)) { resplen = this.epIn.packetSize; }
 
     while (respData.text.length < resplen) {
       try {
         console.log("Transferring...");
-        let respPacket = await this.device?.transferIn(this.epIn.endpointNumber, resplen);
+        let respPacket = await this.device?.transferIn(this.epIn?.endpointNumber, resplen);
         console.log("get respPacket");
         let response = new TextDecoder().decode(respPacket.data);
         console.log("get response");
@@ -141,7 +141,7 @@ export class usbClass {
   }
 
   async _usbWrite(cmd, pktSize=null) {
-    if (!(pktSize === null)) { pktSize = this.epOut.packetSize; }
+    if (!(pktSize === null)) { pktSize = this.epOut?.packetSize; }
     let cmdPacket = new TextEncoder().encode(cmd);
     let offset = 0;
     while (offset < cmdPacket.length){
