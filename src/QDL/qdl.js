@@ -16,18 +16,19 @@ export class qdlDevice {
       await this.cdc?.connect();
       if (this.cdc.connected){
         console.log("Device detected");
-        try {
-          let resp = await this.sahara?.connect();
-          console.log("finish connecting sahara");
-          if (resp.hasOwnProperty("mode")){
-            let mode = resp["mode"];
-            console.log("Mode detected:", mode);
-            return resp;
-          }
-        } catch (error) {
-          console.error(error);
-          process.exit(1);
-        }
+        //try {
+        //  //let resp = await this.sahara?.connect();
+        //  //console.log("finish connecting sahara");
+        //  if (resp.hasOwnProperty("mode")){
+        //    let mode = resp["mode"];
+        //    console.log("Mode detected:", mode);
+        //    return resp;
+        //  }
+        //} catch (error) {
+        //  console.error(error);
+        //  process.exit(1);
+        //}
+        await this.sahara.enterCommandMode();
       }
     }
     return {"mode" : "error"};

@@ -83,7 +83,6 @@ export class usbClass {
     let devices = await navigator.usb.getDevices();
     console.log("Found these USB devices:", devices);
 
-    //console.log("USing USB device:", this.device);
     this.device = await navigator.usb.requestDevice({
       filters: [
         {
@@ -140,9 +139,9 @@ export class usbClass {
     return new TextEncoder().encode(respData);
   }
 
-  async _usbWrite(cmd, pktSize=null) {
+  async _usbWrite(cmdPacket, pktSize=null) {
     if (!(pktSize === null)) { pktSize = this.epOut?.packetSize; }
-    let cmdPacket = new TextEncoder().encode(cmd);
+    //let cmdPacket = new TextEncoder().encode(cmd);
     let offset = 0;
     while (offset < cmdPacket.length){
       console.log("Get in in while loop in write")
@@ -151,11 +150,10 @@ export class usbClass {
         offset += pktSize;
       } catch (error) {
         console.error(error);
-        return new TextEncoder().encode("");
+        //return new TextEncoder().encode("");
+        return false;
       }
     }
-    //return true;
     return true;
-    //return this._usbRead()
   }
 }

@@ -22,6 +22,13 @@ export const cmd_t = {
   //SAHARA_RESET_STATE_MACHINE_ID : 0x13
 }
 
+export const sahara_mode_t = {
+  SAHARA_MODE_IMAGE_TX_PENDING : 0x0,
+  //SAHARA_MODE_IMAGE_TX_COMPLETE = 0x1,
+  //SAHARA_MODE_MEMORY_DEBUG = 0x2,
+  SAHARA_MODE_COMMAND : 0x3
+}
+
 export class CommandHandler {
   pkt_cmd_hdr(data) {
     if (data.length < 2*4) {
@@ -51,6 +58,61 @@ export class CommandHandler {
       reserved4 : st.dword(36),
       reserved5 : st.dword(40),
       reserved6 : st.dword(44),
+    }
+  }
+  pkt_image_end(data) {
+    if (data.length<0x4 * 0x4){
+      console.error("ERROR");
+      process.exit(1);
+    }
+    st = structHelper_io(data);
+    return {
+      cmd : st.dword(0),
+      len : st.dword(4),
+      image_id : st.dword(8),
+      image_tx_status : st.dword(12),
+    }
+  }
+
+  pkt_done(data) {
+    if (data.length <0x3 * 4) {
+      console.error("DataError");
+      process.exit(1);
+    }
+    st = structHelper_io(data);
+    return {
+      cmd : st.dword(0),
+      len : st.dword(4),
+      image_tx_status : st.dword(8)
+    }
+  }
+
+  pkt_read_data_64(data) {
+    if (data.length <0x8 + 0x3 * 0x8) {
+      console.error("DataError")
+      process.exit(1)
+    }
+    st = structHelper_io(data)
+    return {
+      cmd : st.dword(0),
+      len : st.dword(4),
+      image_id : st.qword(8),
+      data_offset : st.qword(16),
+      data_len : st.qword(24),
+    }
+  }
+  
+  pkt_execute_rsp_cmd(data) {
+    if (data.length <0x4 * 0x4) {
+      console.error("DataError");
+      process.exit(1);
+    }
+    st = structHelper_io(data)
+    return {
+        cmd : st.dword(0),
+        len : st.dword(4),
+        client_cmd : st.dword(8),
+        data_len : st.dword(12),
     }
   }
 }
