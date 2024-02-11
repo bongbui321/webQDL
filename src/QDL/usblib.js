@@ -51,14 +51,12 @@ export class usbClass {
       }
       if (endpoint.direction === "in") {
         if (this.epIn === null) {
-          console.log("epIn", endpoint);
           this.epIn = endpoint;
         } else {
           throw new UsbError("Interface has multiple IN endpoints");
         }
       } else if (endpoint.direction === "out") {
         if (this.epOut === null) {
-          console.log("epOut", endpoint);
           this.epOut = endpoint;
         } else {
           throw new UsbError("Interface has multiple OUT endpoints");
