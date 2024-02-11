@@ -15,8 +15,11 @@ export class Sahara {
 
   async connect() {
     try {
-      let v = await this.cdc?._usbRead(0xC * 0x4);
+      //let v = await this.cdc?._usbRead(0xC * 0x4);
+      let v = await this.cdc?._usbWrite(new TextEncoder().encode(""));
+      console.log("v", v);
       let v_text = new TextDecoder().decode(v);
+      console.log("v_text", v_text);
       console.log("v_text:", v_text);
       if (v.length > 1){
         if (v[0] === 0x01){
@@ -33,7 +36,7 @@ export class Sahara {
         }
       } else {
         let data = new TextEndcoder().encode("<?xml version=\"1.0\" ?><data><nop /></data>")
-        this.cdc._usbwrite(data);
+        this.cdc._usbWrite(data);
         let resp = this.cdc._usbRead();
         let resp_text = new TextDecoder().decode(resp);
         if (resp_text.includes("<?xml")) {

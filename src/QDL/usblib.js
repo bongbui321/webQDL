@@ -1,6 +1,10 @@
-const vendorID = 0x05c6;
-const productID = 0x9008;
-const QDL_USB_CLASS = 0xff;
+//const vendorID = 0x05c6;
+//const productID = 0x9008;
+//const QDL_USB_CLASS = 0xff;
+
+const FASTBOOT_USB_CLASS = 0xff;
+const FASTBOOT_USB_SUBCLASS = 0x42;
+const FASTBOOT_USB_PROTOCOL = 0x03;
 
 export class UsbError extends Error {
   constructor(message) {
@@ -87,9 +91,12 @@ export class usbClass {
     this.device = await navigator.usb.requestDevice({
       filters: [
         {
-          vendorID  : vendorID,
-          productID : productID,
-          classCode : QDL_USB_CLASS,
+          //vendorID  : vendorID,
+          //productID : productID,
+          //classCode : QDL_USB_CLASS,
+          classCode: FASTBOOT_USB_CLASS,
+          subclassCode: FASTBOOT_USB_SUBCLASS,
+          protocolCode: FASTBOOT_USB_PROTOCOL,
         },
       ],
     });
@@ -121,20 +128,21 @@ export class usbClass {
     while (respData.text.length < resplen) {
       try {
         console.log("Transferring...");
-        let respPacket = await this.device?.transferIn(this.epIn.endpointNumber, resplen);
+        let respPacket = await this.device?.transferIn(this.epIn?.endpointNumber, resplen);
         console.log("get respPacket");
         let response = new TextDecoder().decode(respPacket.data);
         console.log("get response");
         respData.text += response;
         console.log("added response");
       } catch (error) {
-        if (error.includes("timed out")) {
-          console.error("Timed out");
-          return new TextEncoder().endcode("");
-        } else if (error.includes("Overflow")) {
-          console.error("USB Overflow");
-          return new TextEncoder().endcode("");
-        }
+        //if (error.includes("timed out")) {
+        //  console.error("Timed out");
+        //  return new TextEncoder().endcode("");
+        //} else if (error.includes("Overflow")) {
+        //  console.error("USB Overflow");
+        //  return new TextEncoder().endcode("");
+        //}
+        console.error(error);
       }
     }
     return new TextEncoder().encode(respData);
@@ -155,7 +163,54 @@ export class usbClass {
       }
     }
     //return true;
-    return true;
-    //return this._usbRead()
+    //return true;
+    return this._usbRead(0xC*0x4)
+  }
+
+  async _readResponse() {
+      let respData = { text: "", };
+      let respStatus;
+
+      do {
+          let respPacket = await this.device?.transferIn(this.epIn?.endpointNumber, 64);
+          let response = new TextDecoder().decode(respPacket.data);
+
+          respStatus = response.substring(0, 4);
+          let respMessage = response.substring(4);
+          console.log(`Response: ${respStatus} ${respMessage}`);
+
+          if (respStatus === "OKAY") {
+              // OKAY = end of response for this command
+              respData.text += respMessage;
+          } else if (respStatus === "INFO") {
+              // INFO = additional info line
+              respData.text += respMessage + "\n";
+          } else if (respStatus === "DATA") {
+              // DATA = hex string, but it's returned separately for safety
+              respData.dataSize = respMessage;
+          } else {
+              // Assume FAIL or garbage data
+              //throw new FastbootError(respStatus, respMessage);
+              console.error(respMessage);
+          }
+          // INFO = more packets are coming
+      } while (respStatus === "INFO");
+
+      return respData;
+  }
+
+  async runCommand(command) {
+    // Command and response length is always 64 bytes regardless of protocol
+    if (command.length > 64) {
+      console.log(error);
+      process.exit(1);
+    }
+
+    // Send raw UTF-8 command
+    let cmdPacket = new TextEncoder().encode(command);
+    await this.device?.transferOut(this.epOut?.endpointNumber, cmdPacket);
+    console.log("Command:", command);
+
+    return this._readResponse();
   }
 }
