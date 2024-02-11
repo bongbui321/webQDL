@@ -1,6 +1,6 @@
 'use client';
 
-import {qdlDevice} from "@/utils/qdl";
+import {qdlDevice} from "@/QDL/qdl";
 import { useRef } from 'react'
 
 function Header() {
@@ -10,7 +10,7 @@ function Header() {
 export default function HomePage() {
   const qdldevice = useRef(new qdlDevice());
   const handleConnectClick = () => {
-    qdldevice.current.connect();
+    qdldevice.current.doconnect();
   };
 
   return (
