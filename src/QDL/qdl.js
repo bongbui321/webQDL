@@ -38,7 +38,9 @@ export class qdlDevice {
       await this.cdc?.connect();
       if (this.cdc.connected) {
         try {
-          this.cdc.runCommand(`getvar:all`);
+          await this.cdc.runCommand(`getvar:all`);
+          console.log("finish running command");
+          await this.cdc._readResponse();
         } catch (error) {
           console.error(error);
         }

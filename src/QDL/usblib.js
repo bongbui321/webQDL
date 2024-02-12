@@ -209,6 +209,6 @@ export class usbClass {
     await this.device?.transferOut(this.epOut?.endpointNumber, cmdPacket);
     console.log("Command:", command);
 
-    return this._readResponse();
+    return true;
   }
 }
