@@ -53,6 +53,7 @@ export class Sahara {
       console.log("cmdHello() in enterCommandMode failed");
       return false;
     }
+    console.log("Finish cmdHello")
     let res = await this.getResponse();
     if (res.hasOwnProperty("cmd")){
       if (res["cmd"] === cmd_t.SAHARA_END_TRANSFER){

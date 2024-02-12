@@ -119,7 +119,7 @@ export class usbClass {
 
     while (respData.text.length < resplen) {
       try {
-        console.log("Transferring...");
+        console.log("Transferring In...");
         let respPacket = await this.device?.transferIn(this.epIn?.endpointNumber, resplen);
         console.log("get respPacket");
         let response = new TextDecoder().decode(respPacket.data);
@@ -144,9 +144,10 @@ export class usbClass {
     //let cmdPacket = new TextEncoder().encode(cmd);
     let offset = 0;
     while (offset < cmdPacket.length){
-      console.log("Get in in while loop in write")
       try {
-        await this.device.transferOut(this.epOut.endpointNumber, cmdPacket.slice(offset, offset + pktSize));
+        console.log("Transferring Out...")
+        console.log(cmdPacket.slice(offset, offset+4));
+        await this.device?.transferOut(this.epOut?.endpointNumber, cmdPacket.slice(offset, offset + pktSize));
         offset += pktSize;
       } catch (error) {
         console.error(error);
