@@ -35,7 +35,7 @@ export class CommandHandler {
       console.error("DataError!")
       process.exit(1)
     }
-    st = structHelper_io(data);
+    let st = new structHelper_io(data);
     return { cmd : st.dword(0), len : st.dword(4) }
   }
 
@@ -44,7 +44,7 @@ export class CommandHandler {
       console.error("DataError!")
       process.exit(1)
     }
-    st = structHelper_io(data);
+    let st = new structHelper_io(data);
     return {
       cmd : st.dword(0),
       len : st.dword(4),
@@ -65,7 +65,7 @@ export class CommandHandler {
       console.error("ERROR");
       process.exit(1);
     }
-    st = structHelper_io(data);
+    let st = new structHelper_io(data);
     return {
       cmd : st.dword(0),
       len : st.dword(4),
@@ -79,7 +79,7 @@ export class CommandHandler {
       console.error("DataError");
       process.exit(1);
     }
-    st = structHelper_io(data);
+    let st = new structHelper_io(data);
     return {
       cmd : st.dword(0),
       len : st.dword(4),
@@ -92,7 +92,7 @@ export class CommandHandler {
       console.error("DataError")
       process.exit(1)
     }
-    st = structHelper_io(data)
+    let st = new structHelper_io(data)
     return {
       cmd : st.dword(0),
       len : st.dword(4),
@@ -107,7 +107,7 @@ export class CommandHandler {
       console.error("DataError");
       process.exit(1);
     }
-    st = structHelper_io(data)
+    let st = new structHelper_io(data)
     return {
         cmd : st.dword(0),
         len : st.dword(4),

@@ -121,7 +121,6 @@ export class usbClass {
         respData = concatUint8Array([respData, new Uint8Array(respPacket.data.buffer)]);
         if (respData !== null)
           covered += respData.length;
-        console.log("data:", respData);
       } catch (error) {
         console.error(error);
       }
@@ -130,18 +129,21 @@ export class usbClass {
   }
 
   async _usbWrite(cmdPacket, pktSize=null) {
-    if (!(pktSize === null)) { pktSize = this.epOut?.packetSize; }
-    //let cmdPacket = new TextEncoder().encode(cmd);
     let offset = 0;
+    if (pktSize === null)
+      if (cmdPacket.length > this.epOUt?.packetSize){
+        pktSize = this.epOut?.packetSize;
+      } else {
+        pktSize = cmdPacket.length;
+      }
+
     while (offset < cmdPacket.length){
       try {
         console.log("Transferring Out...")
-        console.log(cmdPacket.slice(offset, offset+4));
         await this.device?.transferOut(this.epOut?.endpointNumber, cmdPacket.slice(offset, offset + pktSize));
         offset += pktSize;
       } catch (error) {
         console.error(error);
-        //return new TextEncoder().encode("");
         return false;
       }
     }

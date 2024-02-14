@@ -17,12 +17,15 @@ export class Sahara {
   async connect() {
     try {
       let v = await this.cdc?._usbRead(0xC * 0x4);
-      let v_text = new TextDecoder().decode(v);
-      console.log("v_text:", v_text);
+      let v_text = new TextDecoder("utf-8").decode(v);
       if (v.length > 1){
-        if (v[0] === 0x01){
+        console.debug("Got in v.length > 1")
+        if (v[0] == 0x01){
+          console.debug("Got in v[0] === 0x01")
           let pkt = this.ch.pkt_cmd_hdr(v);
+          console.log("pkt.cmd:", pkt.cmd);
           if (pkt.cmd == cmd_t.SAHARA_HELLO_REQ) {
+            console.log("got in pkt.cmd === cmd_t.SAHARA_HELLO_REQ");
             let rsp = this.ch.pkt_hello_req(v);
             this.pktSize = rsp.cmd_packet_length;
             this.version = rsp.version;
