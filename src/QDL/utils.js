@@ -28,3 +28,22 @@ export function packGenerator(elements, littleEndian=true) {
   }
   return new Uint8Array(view.buffer);
 }
+
+export function concatUint8Array(arrays){
+  let length = 0;
+  arrays.forEach(item => {
+    if (item !== null)
+      length += item.length;
+  });
+
+  let concatArray = new Uint8Array(length);
+  let offset = 0;
+  arrays.forEach( item => {
+    if (item !== null) {
+      concatArray.set(item, offset);
+      offset += item.length;
+    }
+  });
+
+  return concatArray;
+}
