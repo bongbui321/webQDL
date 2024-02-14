@@ -8,12 +8,12 @@ export class structHelper_io {
 
   dword(idx_start, littleEndian=true) {
     let view = new DataView(this.data.slice(idx_start, idx_start+4).buffer, 0);
-    return view.getUint16(0, littleEndian);
+    return view.getUint32(0, littleEndian);
   }
 
   qword(idx_start, littleEndian=true) {
     let view = new DataView(this.data.slice(idx_start, idx_start+8).buffer, 0);
-    return view.getUint16(0, littleEndian);
+    return view.getUint64(0, littleEndian);
   }
 }
 
