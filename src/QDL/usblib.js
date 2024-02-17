@@ -49,14 +49,12 @@ export class usbClass {
       }
       if (endpoint.direction === "in") {
         if (this.epIn === null) {
-          console.log("epIn", endpoint);
           this.epIn = endpoint;
         } else {
           throw new UsbError("Interface has multiple IN endpoints");
         }
       } else if (endpoint.direction === "out") {
         if (this.epOut === null) {
-          console.log("epOut", endpoint);
           this.epOut = endpoint;
         } else {
           throw new UsbError("Interface has multiple OUT endpoints");
@@ -119,8 +117,8 @@ export class usbClass {
         console.log("Transferring In...");
         let respPacket = await this.device?.transferIn(this.epIn?.endpointNumber, resplen);
         respData = concatUint8Array([respData, new Uint8Array(respPacket.data.buffer)]);
-        if (respData !== null)
-          covered += respData.length;
+        resplen = respData.length;
+        covered += respData.length;
       } catch (error) {
         console.error(error);
       }
@@ -131,12 +129,13 @@ export class usbClass {
   async _usbWrite(cmdPacket, pktSize=null) {
     let offset = 0;
     if (pktSize === null)
-      if (cmdPacket.length > this.epOUt?.packetSize){
+      if (cmdPacket.length > this.epOut?.packetSize){
         pktSize = this.epOut?.packetSize;
       } else {
         pktSize = cmdPacket.length;
       }
-
+    console.log("default pktSize:", this.epOut?.packetSize);
+    console.log("pktSize in write:", pktSize);
     while (offset < cmdPacket.length){
       try {
         console.log("Transferring Out...")

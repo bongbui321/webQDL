@@ -10,7 +10,7 @@ function Header() {
 export default function HomePage() {
   const qdldevice = useRef(new qdlDevice());
   const handleConnectClick = () => {
-    qdldevice.current.doconnect();
+    qdldevice.current.reset();
   };
 
   return (

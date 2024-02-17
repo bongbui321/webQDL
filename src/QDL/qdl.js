@@ -29,4 +29,20 @@ export class qdlDevice {
     }
     return {"mode" : "error"};
   }
+
+  /** TODO: check for connected to sahara 
+   * or mode = firehose then don't need to connect
+   */
+  async reset() {
+    try {
+      let resp = await this.doconnect();
+      let mode = resp["mode"];
+      if (mode === "sahara") {
+        let mode = await this.sahara?.uploadLoader(2); // version 2
+        console.log("mode from uploadloader:", mode);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }
 }
