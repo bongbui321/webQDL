@@ -134,8 +134,6 @@ export class usbClass {
       } else {
         pktSize = cmdPacket.length;
       }
-    console.log("default pktSize:", this.epOut?.packetSize);
-    console.log("pktSize in write:", pktSize);
     while (offset < cmdPacket.length){
       try {
         console.log("Transferring Out...")
