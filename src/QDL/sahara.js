@@ -94,7 +94,8 @@ export class Sahara {
         // TODO: Probably not necessary
         if ([cmd_t.SAHARA_64BIT_MEMORY_READ_DATA,cmd_t.SAHARA_READ_DATA].includes(cmd)) {
           if (cmd == cmd_t.SAHARA_64BIT_MEMORY_READ_DATA)
-            console.log("64-bit mode detected");
+            if (loop == 0)
+              console.log("64-bit mode detected");
           let pkt = resp["data"];
           this.id = pkt.image_id;
           if (this.id >= 0xC){

@@ -26,7 +26,7 @@ export class xmlParser {
   getLog(input) {
     let tInput = new TextDecoder().decode(input);
     let lines = tInput.split("<?xml");
-    let data = []
+    let data = [];
     const replaceBytes = new TextDecoder().decode(new Uint8Array([0xf0, 0xe9, 0x88, 0x14]));
     for (let line of lines) {
       if ("" == line)
