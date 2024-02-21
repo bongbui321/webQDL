@@ -1,5 +1,6 @@
 import { xmlParser } from "./xmlParser"
 import { concatUint8Array, containsBytes, compareStringToBytes, sleep } from "./utils"
+import { parse } from "next/dist/build/swc";
 
 class cfg {
 
@@ -25,18 +26,21 @@ class cfg {
 
 export class Firehose {
   cdc;
-  //xml;
-  cfg
+  xml;
+  cfg;
+  luns;
 
   constructor(cdc) {
     this.cdc = cdc;
     this.xml = new xmlParser();
     this.cfg = new cfg();
+    this.luns = null;
   }
 
   async configure(lvl) {
     if (this.cfg.SECTOR_SIZE_IN_BYTES == 0)
       this.cfg.SECTOR_SIZE_IN_BYTES = 4096
+
     let connectCmd = `<?xml version=\"1.0\" encoding=\"UTF-8\" ?><data>` +
               `<configure MemoryName=\"${this.cfg.MemoryName}\" ` +
               `Verbose=\"0\" ` +
@@ -48,10 +52,49 @@ export class Firehose {
               `SkipWrite=\"${this.cfg.SkipWrite}\"/>` +
               `</data>`
 
-    // TODO: Transfer connectCmd to Uint8Array
     let rsp = await this.xmlSend(connectCmd, false);
-    return true;
+    if (rsp === null || !rsp.resp) {
+      if (rsp.error == "") {
+        return await this.configure(lvl+1);
+      }
+    } else {
+      console.log("in here")
+      //await this.parseStorage();
+      //await this.getLuns();
+      return true;
+    }
   }
+
+  //async parseStorage() {
+  //  const storageInfo = await this.getStorageInfo();
+  //  if (storageInfo === null || storageInfo.resp && storageInfo.data.length === 0)
+  //    return false;
+  //  const info = storageInfo.data;
+  //  if (info.hasOwnProperty("UFS Inquiry Command Output")) {
+  //    this.cfg.prod_name = info["UFS Inquiry Command Output"];
+  //  }
+  //  if (info.hasOwnProperty("UFS Erase Block Size")) {
+  //    this.cfg.block_size = parseInt(info["UFS Erase Block Size"]);
+  //    this.cfg.MemoryName = "UFS";
+  //    this.cfg.SECTOR_SIZE_IN_BYTES = 4096;
+  //  }
+  //  if (info.hasOwnProperty("UFS Total Active LU")) {
+  //    this.cfg.maxlun = parseInt(info["UFS Total Active LU"]);
+  //  }
+  //  if (info.hasOwnProperty("SECTOR_SIZE_IN_BYTES")) {
+  //    this.cfg.SECTOR_SIZE_IN_BYTES = parseInt(info["SECTOR_SIZE_IN_BYTES"]);
+  //  }
+  //  if (info.hasOwnProperty("num_physical_partitions")) {
+  //    this.cfg.num_physical = parseInt(info["num_physical_partitions"])
+  //  }
+  //  return true;
+  //}
+
+
+  //async getStorageInfo() {
+
+  //}
+
 
   async xmlSend(data, wait=true) {
     let dataToSend = new TextEncoder().encode(data).slice(0, this.cfg.MaxXMLSizeInBytes);
@@ -79,9 +122,9 @@ export class Firehose {
       if (status !== null) {
         if (containsBytes("log value=", rData)) {
           //let log = this.xml.getLog(rData);
-          return { "resp" : status, "data" : rData, "log" : "" }; // TODO: getLog()
+          return { resp : status, data : rData, log : "" , error : ""}; // TODO: getLog()
         }
-        return { "resp" : status, "data" : rData };
+        return { resp : status, data : rData , log : "", error : ""};
       }
     } catch (error) {
       console.error(error);
