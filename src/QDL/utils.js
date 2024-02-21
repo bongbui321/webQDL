@@ -56,4 +56,19 @@ export function compareStringToBytes(compareString, array) {
   return compareString == tArray;
 }
 
+export async function loadFileFromLocal() {
+  const [fileHandle] = await window.showOpenFilePicker();
+  const blob = await fileHandle.getFile();
+  return new Promise((resolve, reject) => {
+    let reader = new FileReader();
+    reader.onload = () => {
+      resolve(reader.result);
+    };
+    reader.onerror = () => {
+      reject(reader.error);
+    };
+    reader.readAsArrayBuffer(blob);
+  });
+}
+
 export const sleep = ms => new Promise(r => setTimeout(r, ms));
