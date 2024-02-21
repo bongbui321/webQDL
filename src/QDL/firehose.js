@@ -84,7 +84,6 @@ export class Firehose {
 
   async parseStorage() {
     const storageInfo = await this.getStorageInfo();
-    console.log("storageInfo:", storageInfo);
     if (storageInfo === null || storageInfo.resp && storageInfo.data.length === 0)
       return false;
     const info = storageInfo.data;
@@ -215,7 +214,7 @@ export class Firehose {
   }
 
 
-  async getGpt(lun, gptNumPartEntries, gptNumPartEntries, gptPartEntryStartLba) {
+  async getGpt(lun, gptNumPartEntries, gptPartEntrySize, gptPartEntryStartLba) {
     try {
       let resp = await this.cmdReadBuffer(lun, 0, 2);
     } catch (error) {
@@ -225,13 +224,13 @@ export class Firehose {
       console.error(resp.error);
       return [null, null];
     }
-    const data = resp.data;
+    let data = resp.data;
     const guidGpt = gpt(gptNumPartEntries, gptPartEntrySize, gptPartEntryStartLba);
     try {
       let header = guidGpt.parseHeader(data, this.cfg.SECTOR_SIZE_IN_BYTES);
       if (containsBytes("EFI PART", header.signature)) {
-        let gptSize =   (header.part_entry_start_lba * this.cfg.SECTOR_SIZE_IN_BYTES) +
-                        (header.num_part_entries * header.part_entry_size);
+        const gptSize =   (header.partEntryStartLba * this.cfg.SECTOR_SIZE_IN_BYTES) +
+                        (header.numPartEntry * header.partEntrySize);
         let sectors = Math.floor(gptSize / this.cfg.SECTOR_SIZE_IN_BYTES)
         if (gptSize % this.cfg.SECTOR_SIZE_IN_BYTES != 0)
           sectors += 1;

@@ -2,17 +2,20 @@ export class structHelper_io {
   data;
   direction;
 
-  constructor(data) {
+  constructor(data, pos=0) {
+    this.pos = pos
     this.data = data;
   }
 
-  dword(idx_start, littleEndian=true) {
-    let view = new DataView(this.data.slice(idx_start, idx_start+4).buffer, 0);
+  dword(littleEndian=true) {
+    let view = new DataView(this.data.slice(this.pos, this.pos+4).buffer, 0);
+    this.pos += 4;
     return view.getUint32(0, littleEndian);
   }
 
-  qword(idx_start, littleEndian=true) {
-    let view = new DataView(this.data.slice(idx_start, idx_start+8).buffer, 0);
+  qword(littleEndian=true) {
+    let view = new DataView(this.data.slice(this.pos, this.pos+8).buffer, 0);
+    this.pos += 8;
     return view.getBigUint64(0, littleEndian);
   }
 }
