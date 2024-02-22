@@ -8,4 +8,7 @@ Second & third popup: select `boot.img` file.<br />
 <br />
 In the future, will translate all of the Loader + image upload to automatic using navigator.storage
 <br />
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.<br />
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+<br />
+<br />
+https://issues.chromium.org/issues/40137537
