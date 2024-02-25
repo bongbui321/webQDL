@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  js-crc32:
+    specifier: ^1.0.1
+    version: 1.0.1
   next:
     specifier: ^14.1.0
     version: 14.1.0(react-dom@18.2.0)(react@18.2.0)
@@ -125,6 +128,11 @@ packages:
 
   /graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
+    dev: false
+
+  /js-crc32@1.0.1:
+    resolution: {integrity: sha512-1Lj65x3vOd0SnuNsCY8EtLf531mTSDJKGBbSJfYDcRkDDVoPAtulzzqaWiZGUo9JvLKovaVEKdnyE3UospUg/g==}
+    engines: {node: '>=0.8'}
     dev: false
 
   /js-tokens@4.0.0:

@@ -1,4 +1,5 @@
 const { containsBytes } = require("./utils");
+const crc32 = require("crc-32");
 
 const AB_FLAG_OFFSET = 6;
 const AB_PARTITION_ATTR_SLOT_ACTIVE = (0x1 << 2);
@@ -158,9 +159,28 @@ class gptPartition {
     this.flags = sh.qword();
     this.name = sh.toString(72);
   }
+  
+
   create() {
     // TODO: finish create function
-
+    let buffer = new ArrayBuffer(16 + 16 + 8 + 8 + 8 + 72);
+    let view = new DataView(buffer);
+    let offset = 0;
+    for (let i = 0; i < this.type.length; i++) {
+      view.setUint8(offset++, this.type[i]);
+    }
+    for (let i = 0; i < this.unique.length; i++) {
+      view.setUint8(offset++, this.unique[i]);
+    }
+    let tmp = [this.first_lba, this.last_lba, this.flags];
+    for (let i = 0; i < 3; i++) {
+      view.setBigInt64(offset, tmp[i]);
+      offset += 8;
+    }
+    for (let i = 0; i < 72; i++) {
+      view.setUint8(offset++, this.name[i]);
+    }
+    return new Uint8Array(view.buffer);
   }
 }
 
@@ -269,7 +289,6 @@ export class gpt {
               flags |= AB_PARTITION_ATTR_UNBOOTABLE << (AB_FLAG_OFFSET*9)
             }
             partentry.flags = flags;
-            // TODO: gptPartition.create()
             let pdata = partentry.create();
             return [ pdata, partition.entryOffset ];
           }
@@ -278,5 +297,19 @@ export class gpt {
       }
     }
   return [ null, null ];
+  }
+
+
+  fixGptCrc(data) {
+    const partentry_size = this.header.num_part_entries * this.header.part_entry_size;
+    const partentry_offset = this.header.part_entry_start_lba * this.sectorSize;
+    const partdata = data.slice(partentry_offset, partentry_offset + partentry_size);
+    const headeroffset = this.header.current_lba * this.sectorSize;
+    let headerdata = data.slice(headeroffset, headeroffset+this.header.header_size);
+    headerdata.splice(0x58, 4, new Uint8Array(new DataView(new ArrayBuffer(4)).setUint8(0, crc32(Array.from(partdata)), true)));
+    headerdata.splice(0x10, 4, new Uint8Array(new DataView(new ArrayBuffer(4)).setUint8(0, crc32(new Array(4).fill(0)), true)));
+    headerdata.splice(0x10, 4, new Uint8Array(new DataView(new ArrayBuffer(4)).setUint8(0, crc32(Array.from(headerdata)), true)));
+    data.splice(headeroffset, this.header.header_size, headerdata);
+    return data;
   }
 }

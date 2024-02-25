@@ -394,10 +394,8 @@ export class Firehose {
         const gp = new gpt();
         slot = partitionName.toLowerCase().slice(-2);
         if (slot === "a" || slot === "b") {
-          // TODO: gp.patch()
           const [ pdata, pOffset ] = gp.patch(data, partitionName, partSlots[slot]);
           data.splice(pOffset, pdata.length, pdata);
-          // TODO: gp.fix_gpt_crc(data);
           let wdata = gp.fixGptCrc(data);
           if (wdata !== null) {
             const startSectorPath = Math.floor(pOffset/this.cfg.SECTOR_SIZE_IN_BYTES);
