@@ -141,7 +141,7 @@ export class usbClass {
 
     while (offset < cmdPacket.length){
       try {
-        if (wait){
+        if (wait) {
           await this.device?.transferOut(this.epOut?.endpointNumber, cmdPacket.slice(offset, offset + pktSize));
         } else {
           this.device?.transferOut(this.epOut?.endpointNumber, cmdPacket.slice(offset, offset + pktSize));
