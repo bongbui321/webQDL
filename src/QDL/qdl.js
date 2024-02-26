@@ -58,7 +58,7 @@ export class qdlDevice {
           return false;
         }
         startSector = partition.sector;
-        console.log("Flashing...");
+        console.log(`Flashing ${partitionName}...`);
         if (await this.firehose.cmdProgram(lun, startSector, blob)) {
           console.log(`partition ${partitionName}: startSector ${partition.sector}, sectors ${partition.sectors}`);
         } else {
@@ -83,7 +83,7 @@ export class qdlDevice {
         break;
       if (guidGpt.partentries.hasOwnProperty(partitionName)) {
         const partition = guidGpt.partentries[partitionName];
-        console.log("Erasing...")
+        console.log(`Erasing ${partitionName}...`)
         await this.firehose.cmdErase(lun, partition.sector, partition.sectors);
         console.log(`Erased ${partitionName} starting at sector ${partition.sector} with sectors ${partition.sectors}`)
       } else {
@@ -119,7 +119,6 @@ export class qdlDevice {
       }
     }
     //}
-    return true;
   }
 
 
