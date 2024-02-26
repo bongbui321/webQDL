@@ -109,15 +109,10 @@ export class qdlDevice {
       return ""
     for (const partitionName in guidGpt.partentries) {
       const slot = partitionName.slice(-2);
-      if (slot == "_a") {
-        return "a";
-      } else if (slot == "b") {
-        return "b";
-      } else {
-        console.error("Can't detect slot A or B");
-        return "";
-      }
+      return (slot === a) ? "a" : "b";
     }
+    console.error("Can't detect slot A or B");
+    return "";
     //}
   }
 
