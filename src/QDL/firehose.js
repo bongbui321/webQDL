@@ -46,7 +46,7 @@ export class Firehose {
     this.luns = [];
   }
 
-  async configure(lvl) {
+  async configure() {
     if (this.cfg.SECTOR_SIZE_IN_BYTES == 0)
       this.cfg.SECTOR_SIZE_IN_BYTES = 4096
     let connectCmd = `<?xml version=\"1.0\" encoding=\"UTF-8\" ?><data>` +
@@ -60,13 +60,10 @@ export class Firehose {
               `SkipWrite=\"${this.cfg.SkipWrite}\"/>` +
               `</data>`
 
-    // TODO: Transfer connectCmd to Uint8Array
-    //let rsp = await this.xmlSend(connectCmd, false);
-    //return true;
     let rsp = await this.xmlSend(connectCmd, false);
     if (rsp === null || !rsp.resp) {
       if (rsp.error == "") {
-        return await this.configure(lvl+1);
+        return await this.configure();
       }
     } else {
       await this.parseStorage();
@@ -140,6 +137,19 @@ export class Firehose {
       }
       return null;
     }
+  }
+
+  
+  getStatus(resp) {
+    if (resp.hasOwnProperty("value")) {
+      let value = resp["value"];
+      if (value == "ACK" || value == "true" ) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+    return true;
   }
 
 
@@ -484,15 +494,4 @@ export class Firehose {
   }
 
 
-  getStatus(resp) {
-    if (resp.hasOwnProperty("value")) {
-      let value = resp["value"];
-      if (value == "ACK" || value == "true" ) {
-        return true;
-      } else {
-        return false;
-      }
-    }
-    return true;
-  }
 }

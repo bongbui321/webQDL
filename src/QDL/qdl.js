@@ -3,7 +3,6 @@ import { Sahara } from  "./sahara"
 import { Firehose } from "./firehose"
 import { loadFileFromLocal } from "./utils";
 
-// TODO: reset from sahara mode
 
 export class qdlDevice {
   cdc;
@@ -59,9 +58,9 @@ export class qdlDevice {
           return false;
         }
         startSector = partition.sector;
-        console.log(`Writing to partition ${partitionName}: startSector ${partition.sector} including ${partition.sectors} sectors`);
+        console.log("Flashing...");
         if (await this.firehose.cmdProgram(lun, startSector, blob)) {
-          console.log(`Wrote to startSector: ${startSector}`);
+          console.log(`partition ${partitionName}: startSector ${partition.sector}, sectors ${partition.sectors}`);
         } else {
           console.error("Error writing image");
         }
@@ -84,9 +83,9 @@ export class qdlDevice {
         break;
       if (guidGpt.partentries.hasOwnProperty(partitionName)) {
         const partition = guidGpt.partentries[partitionName];
-        console.log(`partition ${partitionName}: startSector ${partition.sector}, sectors ${partition.sectors}`);
+        console.log("Erasing...")
         await this.firehose.cmdErase(lun, partition.sector, partition.sectors);
-        console.log(`Erased ${partitionName} starting at sector ${partition.sector} with sector count ${partition.sectors}`)
+        console.log(`Erased ${partitionName} starting at sector ${partition.sector} with sectors ${partition.sectors}`)
       } else {
         console.log(`Couldn't erase partition ${partitionName}. Either wrong type or not in lun ${lun}`);
         continue;
@@ -139,12 +138,12 @@ export class qdlDevice {
   }
 
 
-  async transferToCmdMode() {
+  async toCmdMode() {
     let resp = await this.connectToSahara();
     let mode = resp["mode"];
     if (mode === "sahara")
       await this.sahara?.uploadLoader(2); // version 2
-    await this.firehose?.configure(0);
+    await this.firehose?.configure();
     this.mode = "firehose";
     return true;
   }
@@ -170,7 +169,7 @@ export class qdlDevice {
       let flashPartition = "boot";
       let erasePartition = "cache";
 
-      await this.transferToCmdMode();
+      await this.toCmdMode();
 
       let blob = await loadFileFromLocal();
       await this.flashBlob(flashPartition, blob);

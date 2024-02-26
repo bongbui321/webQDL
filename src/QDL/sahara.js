@@ -53,7 +53,6 @@ export class Sahara {
   } 
 
   async uploadLoader(version){
-    // TODO: enter command mode?
     if (!(await this.enterCommandMode(version))) {
       console.error("Failed to enter command mode in Sahara");
       return "error"
@@ -130,6 +129,7 @@ export class Sahara {
       }
     } catch (error) {
       console.error(error);
+      return "error";
     }
     return this.mode;
   }
