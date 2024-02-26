@@ -22,7 +22,7 @@ export class Sahara {
 
   async connect() {
     try {
-      let v = await this.cdc?._usbRead(0xC * 0x4);
+      let v = await this.cdc?.read(0xC * 0x4);
       let v_text = new TextDecoder("utf-8").decode(v);
       if (v.length > 1){
         if (v[0] == 0x01){
@@ -39,8 +39,8 @@ export class Sahara {
         }
       } else {
         let data = new TextEndcoder().encode("<?xml version=\"1.0\" ?><data><nop /></data>")
-        this.cdc._usbwrite(data);
-        let resp = await this.cdc._usbRead();
+        this.cdc.write(data);
+        let resp = await this.cdc.read();
         let resp_text = new TextDecoder().decode(resp);
         if (resp_text.includes("<?xml")) {
           return { "mode" : "firehose" };
@@ -114,7 +114,7 @@ export class Sahara {
             programmer = concatUint8Array([programmer, fillerArray]);
           }
           let dataToSend = programmer.slice(dataOffset, dataOffset+dataLen); // Uint8Array
-          await this.cdc?._usbWrite(dataToSend);
+          await this.cdc?.write(dataToSend);
           datalen -= dataLen;
         } else if (cmd == cmd_t.SAHARA_END_TRANSFER) {
           let pkt = resp["data"];
@@ -136,7 +136,7 @@ export class Sahara {
 
   async cmdDone(){
     const toSendData = packGenerator([cmd_t.SAHARA_DONE_REQ, 0x8]);
-    if (await this.cdc._usbWrite(toSendData)) {
+    if (await this.cdc.write(toSendData)) {
       let res = await this.getResponse();
       for (let i = 0; i < 500; i += 1)
         continue;
@@ -179,7 +179,7 @@ export class Sahara {
 
   async getResponse() {
     try {
-      let data = await this.cdc?._usbRead();
+      let data = await this.cdc?.read();
       let data_text = new TextDecoder('utf-8').decode(data.data);
       if (data.length == 0){
         return {};
@@ -215,7 +215,7 @@ export class Sahara {
     const elements = [cmd, len, version, version_min, max_cmd_len, mode, 1, 2, 3, 4, 5, 6];
     const responseData = packGenerator(elements);
     try {
-      await this.cdc?._usbWrite(responseData);
+      await this.cdc?.write(responseData);
       return true;
     } catch (error) {
       console.error(error);
@@ -227,7 +227,7 @@ export class Sahara {
     const elements = [cmd_t.SAHARA_SWITCH_MODE, 0xC, mode];
     let data = packGenerator(elements);
     try {
-      await this.cdc?._usbWrite(data);
+      await this.cdc?.write(data);
       return true;
     } catch (error) {
       console.error(error);

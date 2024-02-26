@@ -145,13 +145,13 @@ export class Firehose {
 
   async xmlSend(data, wait=true) {
     let dataToSend = new TextEncoder().encode(data).slice(0, this.cfg.MaxXMLSizeInBytes);
-    await this.cdc?._usbWrite(dataToSend, null, wait);
+    await this.cdc?.write(dataToSend, null, wait);
     let rData = new Uint8Array(); // response data in bytes
     let counter = 0;
     let timeout = 0;
     while (!(containsBytes("<response value", rData))) {
       try {
-        let tmp = await this.cdc?._usbRead();
+        let tmp = await this.cdc?.read();
         if (compareStringToBytes("", tmp)) {
           counter += 1;
           await sleep(50);
@@ -278,7 +278,7 @@ export class Firehose {
       let bytesToRead = this.cfg.SECTOR_SIZE_IN_BYTES * numPartitionSectors;
       let total = bytesToRead; // for progress bar
       while (bytesToRead > 0) {
-        let tmp = await this.cdc._usbRead(Math.min(this.cdc.maxSize, bytesToRead));
+        let tmp = await this.cdc.read(Math.min(this.cdc.maxSize, bytesToRead));
         const size = tmp.length;
         bytesToRead -= size;
         resData = concatUint8Array([resData, tmp]);
@@ -307,7 +307,7 @@ export class Firehose {
     let tmp = new Uint8Array();
     let timeout = 0;
     while (!containsBytes("response value", tmp)) {
-      let res = await this.cdc._usbRead();
+      let res = await this.cdc.read();
       if (compareStringToBytes("", res)) {
         timeout += 1;
         if (timeout === 4){
@@ -362,9 +362,9 @@ export class Firehose {
           const fillArray = new Uint8Array(fillLen-wlen).fill(0x00);
           wdata = concatUint8Array([wdata, fillArray]);
         }
-        await this.cdc._usbWrite(wdata);
+        await this.cdc.write(wdata);
         console.log(`Progress: ${Math.floor(offset/total)*100}%`);
-        await this.cdc._usbWrite(new Uint8Array(0), null, true, true);
+        await this.cdc.write(new Uint8Array(0), null, true, true);
       }
 
       const wd = await this.waitForData();
@@ -460,10 +460,10 @@ export class Firehose {
     if (rsp.resp) {
       while (bytesToWrite > 0) {
         let wlen = Math.min(bytesToWrite, this.cfg.MaxPayloadSizeToTargetInBytes);
-        await this.cdc._usbWrite(empty.slice(0, wlen));
+        await this.cdc.write(empty.slice(0, wlen));
         bytesToWrite -= wlen;
         pos += wlen;
-        await this.cdc._usbWrite(new Uint8Array(0), null, true, true);
+        await this.cdc.write(new Uint8Array(0), null, true, true);
         console.log(`Progress: ${Math.floor(pos/total)*100}%`);
       }
       const res = await this.waitForData();

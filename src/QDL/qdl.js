@@ -48,7 +48,7 @@ export class qdlDevice {
     let dp = await this.firehose?.detectPartition(partitionName);
     if (dp[0]) {
       let lun = dp[1];
-      const imgSize = blob.size;
+      const imgSize = blob.byteLength;
       let imgSectors = Math.floor(imgSize/this.firehose.cfg.SECTOR_SIZE_IN_BYTES);
       if (imgSize % this.firehose.cfg.SECTOR_SIZE_IN_BYTES !== 0)
         imgSectors += 1;
@@ -116,7 +116,7 @@ export class qdlDevice {
         return "b";
       } else {
         console.error("Can't detect slot A or B");
-        return ""
+        return "";
       }
     }
     //}
@@ -136,7 +136,6 @@ export class qdlDevice {
       console.error(`Error while setting active slot: ${error}`)
       return false;
     }
-    return true;
   }
 
 

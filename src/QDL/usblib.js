@@ -108,7 +108,7 @@ export class usbClass {
     await this._validateAndConnectDevice();
   }
 
-  async _usbRead(resplen=null){
+  async read(resplen=null){
     let respData = new Uint8Array();
     let covered = 0;
     if ((resplen === null)) 
@@ -127,7 +127,7 @@ export class usbClass {
     return respData;
   }
 
-  async _usbWrite(cmdPacket, pktSize=null, wait=true, force=false) {
+  async write(cmdPacket, pktSize=null, wait=true, force=false) {
     let offset = 0;
     if (pktSize === null)
       if (cmdPacket.length > this.epOut?.packetSize){
