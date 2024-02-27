@@ -139,7 +139,9 @@ export class Firehose {
 
   getLuns() {
     let luns = [];
-    for (let i=0; i < this.cfg.maxlun; i++)
+    //for (let i=0; i < this.cfg.maxlun; i++)
+    //  luns.push(i);
+    for (let i = 0; i < 6; i++)
       luns.push(i);
     return luns;
   }

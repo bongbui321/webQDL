@@ -3,6 +3,22 @@ import { Sahara } from  "./sahara"
 import { Firehose } from "./firehose"
 import { AB_FLAG_OFFSET, AB_PARTITION_ATTR_SLOT_ACTIVE } from "./gpt"
 
+function isRecognizedDevice(partitions) {
+  const expectedPartitions = [
+    "ALIGN_TO_128K_1", "ALIGN_TO_128K_2", "ImageFv", "abl", "aop", "apdp", "bluetooth", "boot", "cache",
+    "cdt", "cmnlib", "cmnlib64", "ddr", "devcfg", "devinfo", "dip", "dsp", "fdemeta", "frp", "fsc", "fsg",
+    "hyp", "keymaster", "keystore", "limits", "logdump", "logfs", "mdtp", "mdtpsecapp", "misc", "modem",
+    "modemst1", "modemst2", "msadp", "persist", "qupfw", "rawdump", "sec", "splash", "spunvm", "ssd",
+    "sti", "storsec", "system", "systemrw", "toolsfv", "tz", "userdata", "vm-linux", "vm-system", "xbl",
+    "xbl_config"
+  ]
+  if (!partitions.every(partition => expectedPartitions.includes(partition))) {
+    console.error("not expected device");
+    return false;
+  }
+  return true;
+}
+
 
 export class qdlDevice {
   cdc;
@@ -199,13 +215,13 @@ export class qdlDevice {
 
       await this.toCmdMode();
 
-      //let blob = await loadFileFromLocal();
-      //await this.flashBlob(flashPartition, blob);
-
-      //await this.erase(erasePartition)
-
       let partitions = await this.getDevicePartitions();
-      console.log("Partitions:", partitions);
+      console.log("isRecognizedDevice:",isRecognizedDevice(partitions));
+
+      let blob = await loadFileFromLocal();
+      await this.flashBlob(flashPartition, blob);
+
+      await this.erase(erasePartition);
 
       await this.reset();
 
