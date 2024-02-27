@@ -1,8 +1,7 @@
 import { usbClass } from "./usblib"
 import { Sahara } from  "./sahara"
 import { Firehose } from "./firehose"
-import { loadFileFromLocal } from "./utils";
-import * as gpt from "./gpt"
+import { AB_FLAG_OFFSET, AB_PARTITION_ATTR_SLOT_ACTIVE } from "./gpt"
 
 
 export class qdlDevice {
@@ -16,6 +15,7 @@ export class qdlDevice {
     this.sahara = new Sahara(this.cdc);
     this.firehose = new Firehose(this.cdc);
   }
+
 
   async connectToSahara() {
     while (!this.cdc.connected){
@@ -95,6 +95,33 @@ export class qdlDevice {
     return true;
   }
 
+
+  async getDevicePartitions() {
+    const partitions = [];
+    const luns = this.firehose?.getLuns();
+    let gptNumPartEntries = 0, gptPartEntrySize = 0, gptPartEntryStartLba = 0;
+    try {
+      for (const lun of luns) {
+        let [ data, guidGpt ] = await this.firehose.getGpt(lun, gptNumPartEntries, gptPartEntrySize, gptPartEntryStartLba);
+
+        if (guidGpt === null)
+          return [];
+        for (const partitionName in guidGpt.partentries) {
+          let partition = partitionName;
+          if (partitionName.endsWith("_a") || partitionName.endsWith("_b"))
+            partition = partitionName.substring(0, partitionName.length-2);
+          if (partitions.includes(partition))
+            continue;
+          partitions.push(partition);
+        }
+      }
+      return partitions;
+    } catch (error) {
+      console.error(error);
+      return [];
+    }
+  }
+
   
   async getActiveSlot() {
     if (this.mode !== "firehose") {
@@ -113,7 +140,7 @@ export class qdlDevice {
       for (const partitionName in guidGpt.partentries) {
         const slot = partitionName.slice(-2);
         const partition = guidGpt.partentries[partitionName];
-        const active = (((partition.flags >> (gpt.AB_FLAG_OFFSET*8))&0xff) & gpt.AB_PARTITION_ATTR_SLOT_ACTIVE) == gpt.AB_PARTITION_ATTR_SLOT_ACTIVE; 
+        const active = (((partition.flags >> (AB_FLAG_OFFSET*8))&0xff) & AB_PARTITION_ATTR_SLOT_ACTIVE) == AB_PARTITION_ATTR_SLOT_ACTIVE; 
         if (slot == "_a" && active) {
           return "a";
         } else if (slot == "_b" && active) {
@@ -174,10 +201,13 @@ export class qdlDevice {
 
       await this.toCmdMode();
 
-      let blob = await loadFileFromLocal();
-      await this.flashBlob(flashPartition, blob);
+      //let blob = await loadFileFromLocal();
+      //await this.flashBlob(flashPartition, blob);
 
-      await this.erase(erasePartition)
+      //await this.erase(erasePartition)
+
+      let partitions = await this.getDevicePartitions();
+      console.log("Partitions:", partitions);
 
       await this.reset();
 
