@@ -133,10 +133,8 @@ export class qdlDevice {
     let gptNumPartEntries = 0, gptPartEntrySize = 0, gptPartEntryStartLba = 0;
     for (const lun of luns) {
       let [ data, guidGpt ] = await this.firehose.getGpt(lun, gptNumPartEntries, gptPartEntrySize, gptPartEntryStartLba);
-
       if (guidGpt === null)
         return ""
-
       for (const partitionName in guidGpt.partentries) {
         const slot = partitionName.slice(-2);
         const partition = guidGpt.partentries[partitionName];
