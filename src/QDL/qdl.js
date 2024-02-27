@@ -3,6 +3,7 @@ import { Sahara } from  "./sahara"
 import { Firehose } from "./firehose"
 import { AB_FLAG_OFFSET, AB_PARTITION_ATTR_SLOT_ACTIVE } from "./gpt"
 
+
 function isRecognizedDevice(partitions) {
   const expectedPartitions = [
     "ALIGN_TO_128K_1", "ALIGN_TO_128K_2", "ImageFv", "abl", "aop", "apdp", "bluetooth", "boot", "cache",
@@ -217,6 +218,9 @@ export class qdlDevice {
 
       let partitions = await this.getDevicePartitions();
       console.log("isRecognizedDevice:",isRecognizedDevice(partitions));
+
+      let slot = await this.getActiveSlot();
+      console.log("activeSlot:", slot);
 
       let blob = await loadFileFromLocal();
       await this.flashBlob(flashPartition, blob);
