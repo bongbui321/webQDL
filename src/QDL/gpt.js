@@ -6,7 +6,6 @@ export const AB_PARTITION_ATTR_SLOT_ACTIVE = (0x1 << 2);
 const AB_PARTITION_ATTR_UNBOOTABLE = (0x1 << 7);
 
 class structHelper {
-  pos = 0;
 
   constructor(data, pos = 0) {
     this.pos = pos;
