@@ -82,8 +82,12 @@ export class qdlDevice {
           console.log(`partition ${partitionName}: startSector ${partition.sector}, sectors ${partition.sectors}`);
         } else {
           console.error("Error writing image");
+          return false;
         }
       }
+    } else {
+      console.error(`Can't find partition ${partitionName}`);
+      return false;
     }
     return true;
   }
@@ -153,15 +157,13 @@ export class qdlDevice {
       if (guidGpt === null)
         return "";
       for (const partitionName in guidGpt.partentries) {
-        let slot = partitionName.slice(-2);
-        let partition = guidGpt.partentries[partitionName];
+        const slot = partitionName.slice(-2);
+        const partition = guidGpt.partentries[partitionName];
         const active = (((BigInt(partition.flags) >> (BigInt(AB_FLAG_OFFSET) * BigInt(8))) & BigInt(0xFF)) & BigInt(AB_PARTITION_ATTR_SLOT_ACTIVE)) === BigInt(AB_PARTITION_ATTR_SLOT_ACTIVE);
-        if (slot == "_a") {
-          if (active)
-            return "a";
-        } else if (slot == "_b") {
-          if (active)
-            return "b";
+        if (slot == "_a" && active) {
+          return "a";
+        } else if (slot == "_b" && active) {
+          return "b";
         }
       }
     }
