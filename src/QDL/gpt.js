@@ -288,9 +288,9 @@ export class gpt {
             const partentry = new gptPartition(sdata);
             let flags = partentry.flags;
             if (active) {
-              flags |= AB_PARTITION_ATTR_SLOT_ACTIVE << (AB_FLAG_OFFSET*8);
+              flags |= Number(BigInt(AB_PARTITION_ATTR_SLOT_ACTIVE) << (BigInt(AB_FLAG_OFFSET) * BigInt(8)));
             } else {
-              flags |= AB_PARTITION_ATTR_UNBOOTABLE << (AB_FLAG_OFFSET*8)
+              flags |= Number(BigInt(AB_PARTITION_ATTR_UNBOOTABLE) << (BigInt(AB_FLAG_OFFSET) * BigInt(8)));
             }
             partentry.flags = flags;
             let pdata = partentry.create();
