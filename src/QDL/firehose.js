@@ -137,7 +137,7 @@ export class Firehose {
   }
 
 
-  // TODO: auto detect maxlun
+  // TODO: better auto detect maxlun
   getLuns() {
     let luns = [];
     for (let i=0; i < this.cfg.maxlun; i++)
