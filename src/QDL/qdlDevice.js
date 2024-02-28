@@ -155,13 +155,11 @@ export class qdlDevice {
       for (const partitionName in guidGpt.partentries) {
         let slot = partitionName.slice(-2);
         let partition = guidGpt.partentries[partitionName];
-        let active = ((partition.flags >> (AB_FLAG_OFFSET*8))&0xff) & AB_PARTITION_ATTR_SLOT_ACTIVE == AB_PARTITION_ATTR_SLOT_ACTIVE; 
+        const active = (((BigInt(partition.flags) >> (BigInt(AB_FLAG_OFFSET) * BigInt(8))) & BigInt(0xFF)) & BigInt(AB_PARTITION_ATTR_SLOT_ACTIVE)) === BigInt(AB_PARTITION_ATTR_SLOT_ACTIVE);
         if (slot == "_a") {
-          console.log(`Active state for ${partitionName}: ${active}`)
           if (active)
             return "a";
         } else if (slot == "_b") {
-          console.log(`Active state for ${partitionName}: ${active}`)
           if (active)
             return "b";
         }
