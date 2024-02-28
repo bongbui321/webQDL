@@ -154,7 +154,6 @@ export class Sahara {
   }
 
 
-
   async uploadLoader(version){
     if (!(await this.enterCommandMode(version))) {
       console.error("Failed to enter command mode in Sahara");

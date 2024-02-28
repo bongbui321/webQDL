@@ -316,9 +316,9 @@ export class gpt {
     const headeroffset      = this.header.current_lba * this.sectorSize;
     let headerdata          = data.slice(headeroffset, headeroffset+this.header.header_size);
 
-    headerdata.splice(0x58, 4, new Uint8Array(new DataView(new ArrayBuffer(4)).setUint8(0, CRC32.buf(Array.from(partdata)), true)));
-    headerdata.splice(0x10, 4, new Uint8Array(new DataView(new ArrayBuffer(4)).setUint8(0, CRC32.buf(new Array(4).fill(0)), true)));
-    headerdata.splice(0x10, 4, new Uint8Array(new DataView(new ArrayBuffer(4)).setUint8(0, CRC32.buf(Array.from(headerdata)), true)));
+    headerdata.splice(0x58, 4, new Uint8Array(new DataView(new ArrayBuffer(4)).setUint8(0, CRC32.buf(Array.from(partdata).buffer), true)));
+    headerdata.splice(0x10, 4, new Uint8Array(new DataView(new ArrayBuffer(4)).setUint8(0, CRC32.buf(new Array(4).fill(0).buffer), true)));
+    headerdata.splice(0x10, 4, new Uint8Array(new DataView(new ArrayBuffer(4)).setUint8(0, CRC32.buf(Array.from(headerdata).buffer), true)));
     data.splice(headeroffset, this.header.header_size, headerdata);
     return data;
   }
