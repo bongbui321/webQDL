@@ -124,10 +124,9 @@ export class qdlDevice {
 
         if (guidGpt === null)
           return [];
-        for (const partitionName in guidGpt.partentries) {
-          let partition = partitionName;
-          if (partitionName.endsWith("_a") || partitionName.endsWith("_b"))
-            partition = partitionName.substring(0, partitionName.length-2);
+        for (let partition in guidGpt.partentries) {
+          if (partition.endsWith("_a") || partition.endsWith("_b"))
+            partition = partition.substring(0, partition.length-2);
           if (partitions.includes(partition))
             continue;
           partitions.push(partition);
@@ -152,15 +151,19 @@ export class qdlDevice {
     for (const lun of luns) {
       let [ data, guidGpt ] = await this.firehose.getGpt(lun, gptNumPartEntries, gptPartEntrySize, gptPartEntryStartLba);
       if (guidGpt === null)
-        return ""
+        return "";
       for (const partitionName in guidGpt.partentries) {
         const slot = partitionName.slice(-2);
         const partition = guidGpt.partentries[partitionName];
         const active = (((partition.flags >> (AB_FLAG_OFFSET*8))&0xff) & AB_PARTITION_ATTR_SLOT_ACTIVE) == AB_PARTITION_ATTR_SLOT_ACTIVE; 
-        if (slot == "_a" && active) {
-          return "a";
-        } else if (slot == "_b" && active) {
-          return "b";
+        if (slot == "_a") {
+          console.log(`Active state for ${partitionName}: ${active}`)
+          if (active)
+            return "a";
+        } else if (slot == "_b") {
+          console.log(`Active state for ${partitionName}: ${active}`)
+          if (active)
+            return "b";
         }
       }
     }
