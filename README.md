@@ -8,7 +8,7 @@ Leeco phone (msm9886pro): `0005f0e100000000_b155b8bf19297f47_fhprg_peek.bin`
 <br />
 SnapDrag845 Loader: `0008e0e100000000_afca69d4235117e5_fhprg.bin`<br />
 <br />
-Second & third popup: select `boot.img` file.<br />
+Second popup: select `boot.img` file.<br />
 <br />
 In the future, will translate all of the Loader + image upload to automatic using navigator.storage
 <br />
