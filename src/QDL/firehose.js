@@ -1,5 +1,5 @@
 import { xmlParser } from "./xmlParser"
-import { concatUint8Array, containsBytes, compareStringToBytes, sleep, loadFileFromLocal } from "./utils"
+import { concatUint8Array, containsBytes, compareStringToBytes, sleep } from "./utils"
 import { gpt } from "./gpt"
 import { QCSparse } from "./sparse";
 
@@ -336,7 +336,7 @@ export class Firehose {
   }
 
 
-  async cmdProgram(physicalPartitionNumber, startSector, blob) {
+  async cmdProgram(physicalPartitionNumber, startSector, blob, onProgress=()=>{}) {
     let sparse        = new QCSparse(blob);
     blob              = new Uint8Array(blob)
     let total         = blob.length;
@@ -374,6 +374,7 @@ export class Firehose {
         }
         offset        += wlen;
         bytesToWrite  -= wlen;
+        onProgress(offset/total);
 
         if (wlen % this.cfg.SECTOR_SIZE_IN_BYTES !== 0){
           let fillLen = (Math.floor(wlen/this.cfg.SECTOR_SIZE_IN_BYTES) * this.cfg.SECTOR_SIZE_IN_BYTES) +
@@ -521,6 +522,4 @@ export class Firehose {
       return false;
     }
   }
-
-
 }

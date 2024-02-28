@@ -1,6 +1,6 @@
 'use client';
 
-import {qdlDevice} from "@/QDL/qdl";
+import {qdlDevice} from "@/QDL/qdlDevice";
 import { useRef } from 'react'
 
 function Header() {

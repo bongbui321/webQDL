@@ -1,6 +1,7 @@
 import { usbClass } from "./usblib"
 import { Sahara } from  "./sahara"
 import { Firehose } from "./firehose"
+import { loadFileFromLocal } from "./utils"
 import { AB_FLAG_OFFSET, AB_PARTITION_ATTR_SLOT_ACTIVE } from "./gpt"
 
 
