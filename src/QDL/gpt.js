@@ -290,7 +290,7 @@ export class gpt {
             if (active) {
               flags |= AB_PARTITION_ATTR_SLOT_ACTIVE << (AB_FLAG_OFFSET*8);
             } else {
-              flags |= AB_PARTITION_ATTR_UNBOOTABLE << (AB_FLAG_OFFSET*9)
+              flags |= AB_PARTITION_ATTR_UNBOOTABLE << (AB_FLAG_OFFSET*8)
             }
             partentry.flags = flags;
             let pdata = partentry.create();

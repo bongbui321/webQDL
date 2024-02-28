@@ -152,10 +152,10 @@ export class qdlDevice {
       let [ data, guidGpt ] = await this.firehose.getGpt(lun, gptNumPartEntries, gptPartEntrySize, gptPartEntryStartLba);
       if (guidGpt === null)
         return "";
-      for (let partitionName in guidGpt.partentries) {
+      for (const partitionName in guidGpt.partentries) {
         let slot = partitionName.slice(-2);
         let partition = guidGpt.partentries[partitionName];
-        let active = (((partition.flags >> (AB_FLAG_OFFSET*8))&0xff) & AB_PARTITION_ATTR_SLOT_ACTIVE) == AB_PARTITION_ATTR_SLOT_ACTIVE; 
+        let active = ((partition.flags >> (AB_FLAG_OFFSET*8))&0xff) & AB_PARTITION_ATTR_SLOT_ACTIVE == AB_PARTITION_ATTR_SLOT_ACTIVE; 
         if (slot == "_a") {
           console.log(`Active state for ${partitionName}: ${active}`)
           if (active)
