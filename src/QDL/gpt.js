@@ -6,7 +6,6 @@ export const AB_PARTITION_ATTR_SLOT_ACTIVE = (0x1 << 2);
 const AB_PARTITION_ATTR_UNBOOTABLE = (0x1 << 7);
 
 class structHelper {
-  pos = 0;
 
   constructor(data, pos = 0) {
     this.pos = pos;
@@ -14,28 +13,24 @@ class structHelper {
   }
 
   qword(littleEndian=true) {
-    const view = new DataView(this.data.slice(this.pos, this.pos+8).buffer, 0);
-    this.pos += 8;
+    const view = new DataView(this.data.slice(this.pos, this.pos+=8).buffer, 0);
     return Number(view.getBigUint64(0, littleEndian));
   }
 
   dword(littleEndian=true) {
-    let view = new DataView(this.data.slice(this.pos, this.pos+4).buffer, 0);
-    this.pos += 4;
+    let view = new DataView(this.data.slice(this.pos, this.pos+=4).buffer, 0);
     return view.getUint32(0, littleEndian);
   }
 
   bytes(rlen=1) {
-    const dat = this.data.slice(this.pos, this.pos+rlen);
-    this.pos += rlen;
+    const dat = this.data.slice(this.pos, this.pos+=rlen);
     if (rlen == 1)
       return dat[0];
     return dat;
   }
 
   toString(rlen=1) {
-    const dat = this.data.slice(this.pos, this.pos+rlen);
-    this.pos += rlen;
+    const dat = this.data.slice(this.pos, this.pos+=rlen);
     return dat;
   }
 }
@@ -295,7 +290,7 @@ export class gpt {
             if (active) {
               flags |= AB_PARTITION_ATTR_SLOT_ACTIVE << (AB_FLAG_OFFSET*8);
             } else {
-              flags |= AB_PARTITION_ATTR_UNBOOTABLE << (AB_FLAG_OFFSET*9)
+              flags |= AB_PARTITION_ATTR_UNBOOTABLE << (AB_FLAG_OFFSET*8)
             }
             partentry.flags = flags;
             let pdata = partentry.create();
