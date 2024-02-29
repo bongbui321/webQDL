@@ -1,5 +1,5 @@
 import { CommandHandler, cmd_t, sahara_mode_t, status_t, exec_cmd_t } from "./saharaDefs"
-import { concatUint8Array, packGenerator, loadFileFromLocal } from "./utils";
+import { concatUint8Array, packGenerator, loadFileFromLocal, readBlobAsBuffer } from "./utils";
 
 export class Sahara {
   cdc;
@@ -174,7 +174,7 @@ export class Sahara {
     }
 
     console.log("Uploading Programmer...");
-    let programmer = new Uint8Array(await loadFileFromLocal());
+    let programmer = new Uint8Array(await readBlobAsBuffer(await loadFileFromLocal()));
     if (!(await this.cmdHello(sahara_mode_t.SAHARA_MODE_IMAGE_TX_PENDING, version=version))) {
       return "";
     }

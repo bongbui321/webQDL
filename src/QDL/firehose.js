@@ -1,5 +1,5 @@
 import { xmlParser } from "./xmlParser"
-import { concatUint8Array, containsBytes, compareStringToBytes, sleep } from "./utils"
+import { concatUint8Array, containsBytes, compareStringToBytes, sleep, readBlobAsBuffer } from "./utils"
 import { gpt } from "./gpt"
 import { QCSparse } from "./sparse";
 
@@ -338,13 +338,13 @@ export class Firehose {
 
   async cmdProgram(physicalPartitionNumber, startSector, blob, onProgress=()=>{}) {
     let sparse        = new QCSparse(blob);
-    blob              = new Uint8Array(blob)
-    let total         = blob.length;
+    let total         = blob.size;
     let sparseformat  = false
 
-    if (sparse.parseFileHeader()) {
+    if (await sparse.parseFileHeader()) {
       sparseformat  = true;
-      total         = sparse.getSize();
+      total         = await sparse.getSize();
+      console.log("size of sparse:", total);
     }
 
     let bytesToWrite        = total;
@@ -363,14 +363,14 @@ export class Firehose {
     let offset  = 0;
 
     if (rsp.resp) {
-      while (bytesToWrite > 0) { 
-        let wlen = Math.min(bytesToWrite, this.cfg.MaxPayloadSizeFromTargetInBytes);
+      while (bytesToWrite > 0) {
+        let wlen = Math.min(bytesToWrite, this.cfg.MaxPayloadSizeToTargetInBytes);
         let wdata;
 
         if (sparseformat) {
-          wdata = sparse.read(wlen);
+          wdata = await sparse.read(wlen);
         } else {
-          wdata = blob.slice(offset, offset + wlen);
+          wdata = new Uint8Array(await readBlobAsBuffer(blob.slice(offset, offset + wlen)));
         }
         offset        += wlen;
         bytesToWrite  -= wlen;
@@ -383,23 +383,24 @@ export class Firehose {
           wdata = concatUint8Array([wdata, fillArray]);
         }
 
-        await this.cdc.write(wdata);
-        console.log(`Progress: ${Math.floor(offset/total)*100}%`);
-        await this.cdc.write(new Uint8Array(0), null, true, true);
+        //await this.cdc.write(wdata);
+        //console.log(`Progress: ${Math.floor(offset/total)*100}%`);
+        //await this.cdc.write(new Uint8Array(0), null, true, true);
       }
+      console.log("wrote:", offset);
 
-      const wd  = await this.waitForData();
-      const log = this.xml.getLog(wd);
-      const rsp = this.xml.getReponse(wd);
-      if (rsp.hasOwnProperty("value")) {
-        if (rsp["value"] !== "ACK") {
-          console.error("ERROR")
-          return false;
-        }
-      } else {
-        console.error("Error:", rsp);
-        return false;
-      }
+      //const wd  = await this.waitForData();
+      //const log = this.xml.getLog(wd);
+      //const rsp = this.xml.getReponse(wd);
+      //if (rsp.hasOwnProperty("value")) {
+      //  if (rsp["value"] !== "ACK") {
+      //    console.error("ERROR")
+      //    return false;
+      //  }
+      //} else {
+      //  console.error("Error:", rsp);
+      //  return false;
+      //}
     }
     return true;
   }
