@@ -67,10 +67,10 @@ export class qdlDevice {
         imgSectors += 1;
       if (partitionName.toLowerCase() !== "gpt") {
         const partition = dp[2];
-        //if (imgSectors > partition.sectors) {
-        //  console.error("partition has fewer sectors compared to the flashing image");
-        //  return false;
-        //}
+        if (imgSectors > partition.sectors) {
+          console.error("partition has fewer sectors compared to the flashing image");
+          return false;
+        }
         startSector = partition.sector;
         console.log(`Flashing ${partitionName}...`);
         if (await this.firehose.cmdProgram(lun, startSector, blob, onProgress)) {
@@ -254,7 +254,7 @@ export class qdlDevice {
       let blob = await loadFileFromLocal();
       await this.flashBlob(flashPartition, blob);
 
-      //await this.erase(erasePartition);
+      await this.erase(erasePartition);
 
       await this.reset();
 

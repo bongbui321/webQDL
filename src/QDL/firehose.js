@@ -1,7 +1,6 @@
 import { xmlParser } from "./xmlParser"
 import { concatUint8Array, containsBytes, compareStringToBytes, sleep, readBlobAsBuffer } from "./utils"
 import { gpt } from "./gpt"
-import { QCSparse } from "./sparse";
 
 
 class response {
@@ -337,23 +336,14 @@ export class Firehose {
 
 
   async cmdProgram(physicalPartitionNumber, startSector, blob, onProgress=()=>{}) {
-    let sparse        = new QCSparse(blob);
-    let total         = blob.size;
-    let sparseformat  = false
-
-    if (await sparse.parseFileHeader()) {
-      sparseformat  = true;
-      total         = await sparse.getSize();
-      console.log("size of sparse:", total);
-    }
-
+    let total               = blob.size;
     let bytesToWrite        = total;
     let numPartitionSectors = Math.floor(total/this.cfg.SECTOR_SIZE_IN_BYTES);
 
     if (total % this.cfg.SECTOR_SIZE_IN_BYTES !== 0)
       numPartitionSectors += 1;
 
-    const data = `<?xml version=\"1.0\" ?><data>\n` +
+    const data  = `<?xml version=\"1.0\" ?><data>\n` +
               `<program SECTOR_SIZE_IN_BYTES=\"${this.cfg.SECTOR_SIZE_IN_BYTES}\"` +
               ` num_partition_sectors=\"${numPartitionSectors}\"` +
               ` physical_partition_number=\"${physicalPartitionNumber}\"` +
@@ -365,42 +355,33 @@ export class Firehose {
     if (rsp.resp) {
       while (bytesToWrite > 0) {
         let wlen = Math.min(bytesToWrite, this.cfg.MaxPayloadSizeToTargetInBytes);
-        let wdata;
-
-        if (sparseformat) {
-          wdata = await sparse.read(wlen);
-        } else {
-          wdata = new Uint8Array(await readBlobAsBuffer(blob.slice(offset, offset + wlen)));
-        }
+        let wdata          = new Uint8Array(await readBlobAsBuffer(blob.slice(offset, offset + wlen)));
         offset        += wlen;
         bytesToWrite  -= wlen;
         onProgress(offset/total);
-
         if (wlen % this.cfg.SECTOR_SIZE_IN_BYTES !== 0){
           let fillLen = (Math.floor(wlen/this.cfg.SECTOR_SIZE_IN_BYTES) * this.cfg.SECTOR_SIZE_IN_BYTES) +
                         this.cfg.SECTOR_SIZE_IN_BYTES;
           const fillArray = new Uint8Array(fillLen-wlen).fill(0x00);
           wdata = concatUint8Array([wdata, fillArray]);
         }
-
-        //await this.cdc.write(wdata);
-        //console.log(`Progress: ${Math.floor(offset/total)*100}%`);
-        //await this.cdc.write(new Uint8Array(0), null, true, true);
+        await this.cdc.write(wdata);
+        console.log(`Progress: ${Math.floor(offset/total)*100}%`);
+        await this.cdc.write(new Uint8Array(0), null, true, true);
       }
-      console.log("wrote:", offset);
 
-      //const wd  = await this.waitForData();
-      //const log = this.xml.getLog(wd);
-      //const rsp = this.xml.getReponse(wd);
-      //if (rsp.hasOwnProperty("value")) {
-      //  if (rsp["value"] !== "ACK") {
-      //    console.error("ERROR")
-      //    return false;
-      //  }
-      //} else {
-      //  console.error("Error:", rsp);
-      //  return false;
-      //}
+      const wd  = await this.waitForData();
+      const log = this.xml.getLog(wd);
+      const rsp = this.xml.getReponse(wd);
+      if (rsp.hasOwnProperty("value")) {
+        if (rsp["value"] !== "ACK") {
+          console.error("ERROR")
+          return false;
+        }
+      } else {
+        console.error("Error:", rsp);
+        return false;
+      }
     }
     return true;
   }
