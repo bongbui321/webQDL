@@ -1,6 +1,5 @@
 import { concatUint8Array, readBlobAsBuffer } from "./utils";
 
-
 const FILE_MAGIC = 0xed26ff3a;
 export const FILE_HEADER_SIZE = 28;
 const CHUNK_HEADER_SIZE = 12;
@@ -114,6 +113,8 @@ export class QCSparse {
         console.error("CRC32 chunk should have 4 bytes of CRC");
         return -1;
       } else {
+        console.error("got in crc32");
+        throw new Error();
         return [0, 0, 0];
       }
     } else {
@@ -243,6 +244,12 @@ class BlobBuilder {
 async function createImage(header, chunks) {
   let blobBuilder = new BlobBuilder();
 
+  if (chunks.length > 1) {
+    console.error("supposed to be only one chunk");
+    throw new Error();
+  }
+  console.log("chunk in createimage:", chunks[0]);
+
   let buffer = new ArrayBuffer(FILE_HEADER_SIZE);
   let dataView = new DataView(buffer);
   let arrayView = new Uint8Array(buffer);
@@ -325,6 +332,13 @@ export async function* splitBlob(blob, splitSize = 1048576) {
   let total_bytes_not_raw  = 0;
   let total_bytes_raw      = 0;
   let total_bytes2         = 0;
+  let total_check_blks     = 0;
+  let total_create_blks    = 0;
+  let chunks_to_process    = 0;
+  let chunks_create        = 0;
+  let create_header_sz     = 0;
+  let create_blks_not_raw  = 0;
+  let create_blks_raw      = 0;
 
   for (let i = 0; i < header.total_chunks; i++) {
     let originalChunk  = await parseChunkHeader(blob.slice(0, CHUNK_HEADER_SIZE));
@@ -333,10 +347,11 @@ export async function* splitBlob(blob, splitSize = 1048576) {
 
     let chunksToProcess  = [];
     let realBytesToWrite = calcChunksRealDataBytes(originalChunk, header.blk_sz)
+    
+    const isChunkTypeSkip = originalChunk.type == ChunkType.Skip;
+    const isChunkTypeFill = originalChunk.type == ChunkType.Fill;
 
     if (realBytesToWrite > safeToSend) {
-      const isChunkTypeSkip = originalChunk.type == ChunkType.Skip;
-      const isChunkTypeFill = originalChunk.type == ChunkType.Fill;
       
       let bytesToWrite      = isChunkTypeSkip ? 1 : originalChunk.dataBytes;
       let originalChunkData = originalChunk.data;
@@ -363,7 +378,13 @@ export async function* splitBlob(blob, splitSize = 1048576) {
             //sanity check
             //total_bytes += realSend;
             //total_bytes_not_raw += tmpChunk.blocks * header.blk_sz;
-            total_bytes_not_raw += realSend;
+            total_check_blks += tmpChunk.blocks;
+            total_bytes_not_raw += tmpChunk.blocks * header.blk_sz;
+            chunks_to_process += 1;
+            if (realSend % header.blk_sz != 0) {
+              console.error("not divisible");
+              return;
+            }
           }
 
           if (realBytesToWrite != 0) {
@@ -382,7 +403,9 @@ export async function* splitBlob(blob, splitSize = 1048576) {
 
         } else {
           //total_bytes += toSend;
-          total_bytes_raw += toSend;
+          total_bytes_raw += tmpChunk.blocks * header.blk_sz;
+          total_check_blks += tmpChunk.blocks;
+          chunks_to_process += 1;
           chunksToProcess.push(tmpChunk);
         }
 
@@ -398,21 +421,48 @@ export async function* splitBlob(blob, splitSize = 1048576) {
         return;
       }
     } else { 
+      if (isChunkTypeSkip || isChunkTypeFill) {
+        total_bytes_not_raw += originalChunk.blocks*header.blk_sz;
+      } else {
+        total_bytes_raw += originalChunk.blocks*header.blk_sz;
+      } 
+      total_check_blks += originalChunk.blocks;
+      chunks_to_process +=1;
       chunksToProcess.push(originalChunk)
     }
     for (let chunk of chunksToProcess) {
       console.log("chunk:", chunk);
+      if (chunk.type == ChunkType.Fill || chunk.type == ChunkType.Skip){
+        create_blks_not_raw += chunk.blocks;
+      } else {
+        create_blks_raw += chunk.blocks;
+      }
       // TODO: combine chunks
       let splitImage = await createImage(header, [chunk]);
+
+      // TODO: remove this
       let header_splitImage = await parseFileHeader(splitImage.slice(0, FILE_HEADER_SIZE));
+      total_create_blks += header_splitImage.total_blks;
       total_bytes2 += header_splitImage.total_blks * header_splitImage.blk_sz;
+      chunks_create += 1;
+      create_header_sz = header_splitImage.blk_sz;
+
       yield splitImage;
     }
   }
-  console.log("length of chunksToProcess:", chunksToProcess.length);
-  //console.log("totalBytes:", total_bytes);
-  console.log("totalBytes not raw:", total_bytes_not_raw);
-  console.log("totalBytes raw:", total_bytes_raw);
-  console.log("total_bytes:", total_bytes_not_raw + total_bytes_raw)
+  //console.log("totalBytes not raw:", total_bytes_not_raw);
+  //console.log("totalBytes raw:", total_bytes_raw);
+  //console.log("total_bytes:", total_bytes_not_raw + total_bytes_raw)
+  console.log("totalblocks appended:", total_check_blks);
+  console.log("totalblocks create:", total_create_blks);
+
+  console.log("create_blks_not_raw:", create_blks_not_raw);
+  console.log("create_blks_raw:", create_blks_raw);
+
+
+  //console.log("chunks_to_process:", chunks_to_process);
+  //console.log("chunks_create:", chunks_create);
   console.log("totalBytes2:", total_bytes2);
+  console.log("create_blk_sz:", create_header_sz);
+  console.log("header_blk_sz:", header.blk_sz);
 }

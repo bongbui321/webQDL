@@ -2,7 +2,6 @@ import { xmlParser } from "./xmlParser"
 import { concatUint8Array, containsBytes, compareStringToBytes, sleep, readBlobAsBuffer } from "./utils"
 import { gpt } from "./gpt"
 import * as Sparse from "./sparse";
-import { taintObjectReference } from "next/dist/server/app-render/entry-base";
 
 
 class response {
@@ -345,10 +344,10 @@ export class Firehose {
 
     let sparseHeader = await Sparse.parseFileHeader(blob.slice(0, Sparse.FILE_HEADER_SIZE));
     let sparseImage;
+    let total_raw, total_not_raw;
     if (sparseHeader !== null) {
       sparseImage   = new Sparse.QCSparse(blob, sparseHeader)
       sparseformat  = true;
-      let total_raw, total_not_raw;
       [total, total_raw, total_not_raw]         = await sparseImage.getSize();
       console.log("size of image:", total);
     }
@@ -366,6 +365,7 @@ export class Firehose {
     let rsp     = await this.xmlSend(data);
 
     let bytesWritten = 0;
+    let total_size_splits = 0;
     for await (let split of Sparse.splitBlob(blob)) {
       let offset  = 0;
       let bytesToWriteSplit = split.size;
@@ -378,6 +378,7 @@ export class Firehose {
         console.log("ready to get size");
         let raw, not_raw;
         [bytesToWriteSplit, raw, not_raw] = await sparseSplit.getSize();
+        total_size_splits += bytesToWriteSplit;
       }
       if (rsp.resp) {
         while (bytesToWriteSplit > 0) {
@@ -430,9 +431,11 @@ export class Firehose {
       //  return false;
       //}
     }
+    console.log("ready to return from cmdProgram()");
     console.log("total_raw:", total_raw);
     console.log("total_not_raw:", total_not_raw);
-    console.log("ready to return from cmdProgram()");
+    console.log("total:", total_raw + total_not_raw);
+    console.log('bytesToWriteSplit:', total_size_splits);
     return true;
   }
 
