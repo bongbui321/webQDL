@@ -1,6 +1,8 @@
 import { xmlParser } from "./xmlParser"
 import { concatUint8Array, containsBytes, compareStringToBytes, sleep, readBlobAsBuffer } from "./utils"
 import { gpt } from "./gpt"
+import * as Sparse from "./sparse";
+import { taintObjectReference } from "next/dist/server/app-render/entry-base";
 
 
 class response {
@@ -21,7 +23,8 @@ class cfg {
     this.SkipStorageInit = 0;
     this.SkipWrite = 0;
     this.MaxPayloadSizeToTargetInBytes = 1048576;
-    this.MaxPayloadSizeFromTargetInBytes = 8192;
+    //this.MaxPayloadSizeToTargetInBytes = 32768;
+    this.MaxPayloadSizeFromTargetInBytes = 4096;
     this.MaxXMLSizeInBytes = 4096;
     this.bit64 = true;
     this.total_blocks = 0;
@@ -335,12 +338,24 @@ export class Firehose {
   }
 
 
+  //TODO: remove multiple output from getsize()
   async cmdProgram(physicalPartitionNumber, startSector, blob, onProgress=()=>{}) {
-    let total               = blob.size;
-    let bytesToWrite        = total;
+    let total         = blob.size;
+    let sparseformat  = false
+
+    let sparseHeader = await Sparse.parseFileHeader(blob.slice(0, Sparse.FILE_HEADER_SIZE));
+    let sparseImage;
+    if (sparseHeader !== null) {
+      sparseImage   = new Sparse.QCSparse(blob, sparseHeader)
+      sparseformat  = true;
+      let total_raw, total_not_raw;
+      [total, total_raw, total_not_raw]         = await sparseImage.getSize();
+      console.log("size of image:", total);
+    }
+
     let numPartitionSectors = Math.floor(total/this.cfg.SECTOR_SIZE_IN_BYTES);
 
-    if (total % this.cfg.SECTOR_SIZE_IN_BYTES !== 0)
+    if (total % this.cfg.SECTOR_SIZE_IN_BYTES != 0)
       numPartitionSectors += 1;
 
     const data  = `<?xml version=\"1.0\" ?><data>\n` +
@@ -348,41 +363,76 @@ export class Firehose {
               ` num_partition_sectors=\"${numPartitionSectors}\"` +
               ` physical_partition_number=\"${physicalPartitionNumber}\"` +
               ` start_sector=\"${startSector}\" />\n</data>`;
-
     let rsp     = await this.xmlSend(data);
-    let offset  = 0;
 
-    if (rsp.resp) {
-      while (bytesToWrite > 0) {
-        let wlen = Math.min(bytesToWrite, this.cfg.MaxPayloadSizeToTargetInBytes);
-        let wdata          = new Uint8Array(await readBlobAsBuffer(blob.slice(offset, offset + wlen)));
-        offset        += wlen;
-        bytesToWrite  -= wlen;
-        onProgress(offset/total);
-        if (wlen % this.cfg.SECTOR_SIZE_IN_BYTES !== 0){
-          let fillLen = (Math.floor(wlen/this.cfg.SECTOR_SIZE_IN_BYTES) * this.cfg.SECTOR_SIZE_IN_BYTES) +
-                        this.cfg.SECTOR_SIZE_IN_BYTES;
-          const fillArray = new Uint8Array(fillLen-wlen).fill(0x00);
-          wdata = concatUint8Array([wdata, fillArray]);
+    let bytesWritten = 0;
+    for await (let split of Sparse.splitBlob(blob)) {
+      let offset  = 0;
+      let bytesToWriteSplit = split.size;
+      let sparseSplit;
+      if (sparseformat) {
+        console.log("ready to parse split");
+        let sparseSplitHeader = await Sparse.parseFileHeader(split.slice(0, Sparse.FILE_HEADER_SIZE));
+        console.log("ready to create new sparse");
+        sparseSplit = new Sparse.QCSparse(split, sparseSplitHeader);
+        console.log("ready to get size");
+        let raw, not_raw;
+        [bytesToWriteSplit, raw, not_raw] = await sparseSplit.getSize();
+      }
+      if (rsp.resp) {
+        while (bytesToWriteSplit > 0) {
+          let wlen = Math.min(bytesToWriteSplit, this.cfg.MaxPayloadSizeToTargetInBytes);
+          let wdata;
+          
+          if (sparseformat) {
+            wdata = await sparseSplit?.read(wlen);
+          } else {
+            wdata = new Uint8Array(await readBlobAsBuffer(split.slice(offset, offset + wlen)));
+          }
+
+          offset             += wlen;
+          bytesToWriteSplit  -= wlen;
+          bytesWritten       += wlen;
+
+          //console.log(wdata);
+          console.log("progress:", total - bytesWritten);
+
+          onProgress(bytesWritten/total);
+
+          if (wlen % this.cfg.SECTOR_SIZE_IN_BYTES !== 0){
+            let fillLen = (Math.floor(wlen/this.cfg.SECTOR_SIZE_IN_BYTES) * this.cfg.SECTOR_SIZE_IN_BYTES) +
+                          this.cfg.SECTOR_SIZE_IN_BYTES;
+            const fillArray = new Uint8Array(fillLen-wlen).fill(0x00);
+            wdata = concatUint8Array([wdata, fillArray]);
+          }
+
+          //await this.cdc.write(wdata);
+          //console.log(`Progress: ${Math.floor(offset/total)*100}%`);
+          //await this.cdc.write(new Uint8Array(0), null, true, true);
         }
-        await this.cdc.write(wdata);
-        console.log(`Progress: ${Math.floor(offset/total)*100}%`);
-        await this.cdc.write(new Uint8Array(0), null, true, true);
+      }
+      if (bytesToWriteSplit != 0) {
+        console.error("error in writing wlen");
+        console.log(bytesToWriteSplit);
+        return;
       }
 
-      const wd  = await this.waitForData();
-      const log = this.xml.getLog(wd);
-      const rsp = this.xml.getReponse(wd);
-      if (rsp.hasOwnProperty("value")) {
-        if (rsp["value"] !== "ACK") {
-          console.error("ERROR")
-          return false;
-        }
-      } else {
-        console.error("Error:", rsp);
-        return false;
-      }
+      //const wd  = await this.waitForData();
+      //const log = this.xml.getLog(wd);
+      //const resposne = this.xml.getReponse(wd);
+      //if (resposne.hasOwnProperty("value")) {
+      //  if (resposne["value"] !== "ACK") {
+      //    console.error("ERROR")
+      //    return false;
+      //  }
+      //} else {
+      //  console.error("Error:", resposne);
+      //  return false;
+      //}
     }
+    console.log("total_raw:", total_raw);
+    console.log("total_not_raw:", total_not_raw);
+    console.log("ready to return from cmdProgram()");
     return true;
   }
 
@@ -494,6 +544,7 @@ export class Firehose {
   
   async cmdReset() {
     let data  = "<?xml version=\"1.0\" ?><data><power value=\"reset\"/></data>";
+    console.log("waiting for val");
     let val   = await this.xmlSend(data);
 
     if (val.resp) {

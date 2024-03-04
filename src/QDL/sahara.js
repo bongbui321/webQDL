@@ -1,5 +1,5 @@
 import { CommandHandler, cmd_t, sahara_mode_t, status_t, exec_cmd_t } from "./saharaDefs"
-import { concatUint8Array, packGenerator, loadFileFromLocal, readBlobAsBuffer } from "./utils";
+import { containsBytes, concatUint8Array, packGenerator, loadFileFromLocal, readBlobAsBuffer } from "./utils";
 import config from "@/config"
 
 export class Sahara {
@@ -35,7 +35,7 @@ export class Sahara {
             this.version = rsp.version;
             return { "mode" : "sahara", "cmd" : cmd_t.SAHARA_HELLO_REQ, "data" : rsp };
           }
-        }
+        } 
       }
     } catch (error) {
       console.error(error);

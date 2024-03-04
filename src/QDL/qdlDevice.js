@@ -4,6 +4,29 @@ import { Firehose } from "./firehose"
 import { loadFileFromLocal } from "./utils"
 import { AB_FLAG_OFFSET, AB_PARTITION_ATTR_SLOT_ACTIVE } from "./gpt"
 
+function isRecognizedDevice(slotCount, partitions) {
+
+  if (slotCount !== 2) {
+    console.error('[QDL] Unrecognised device (kernel, slotCount)')
+    return false
+  }
+
+  // check we have the expected partitions to make sure it's a comma three
+  const expectedPartitions = [
+    "ALIGN_TO_128K_1", "ALIGN_TO_128K_2", "ImageFv", "abl", "aop", "apdp", "bluetooth", "boot", "cache",
+    "cdt", "cmnlib", "cmnlib64", "ddr", "devcfg", "devinfo", "dip", "dsp", "fdemeta", "frp", "fsc", "fsg",
+    "hyp", "keymaster", "keystore", "limits", "logdump", "logfs", "mdtp", "mdtpsecapp", "misc", "modem",
+    "modemst1", "modemst2", "msadp", "persist", "qupfw", "rawdump", "sec", "splash", "spunvm", "ssd",
+    "sti", "storsec", "system", "systemrw", "toolsfv", "tz", "userdata", "vm-linux", "vm-system", "xbl",
+    "xbl_config"
+  ]
+  if (!partitions.every(partition => expectedPartitions.includes(partition))) {
+    console.error('[QDL] Unrecognised device (partitions)', partitions)
+    return false
+  }
+  return true
+}
+
 
 export class qdlDevice {
   cdc;
@@ -67,10 +90,10 @@ export class qdlDevice {
         imgSectors += 1;
       if (partitionName.toLowerCase() !== "gpt") {
         const partition = dp[2];
-        if (imgSectors > partition.sectors) {
-          console.error("partition has fewer sectors compared to the flashing image");
-          return false;
-        }
+        //if (imgSectors > partition.sectors) {
+        //  console.error("partition has fewer sectors compared to the flashing image");
+        //  return false;
+        //}
         startSector = partition.sector;
         console.log(`Flashing ${partitionName}...`);
         if (await this.firehose.cmdProgram(lun, startSector, blob, onProgress)) {
@@ -196,8 +219,11 @@ export class qdlDevice {
   async toCmdMode() {
     let resp = await this.connectToSahara();
     let mode = resp["mode"];
-    if (mode === "sahara")
+    if (mode === "sahara") {
       await this.sahara?.uploadLoader(2); // version 2
+    } else {
+      return false;
+    }
     await this.firehose?.configure();
     this.mode = "firehose";
     return true;
@@ -252,14 +278,18 @@ export class qdlDevice {
 
       await this.toCmdMode();
 
-      //let slot = await this.getActiveSlot();
-      //console.log("activeSlot:", slot);
+      let slot = await this.getActiveSlot();
+      console.log("activeSlot:", slot);
+
+      let [slotCount, partitions] = await this.getDevicePartitions();
+      console.log("isRecognizedDevice:", isRecognizedDevice(slotCount, partitions));
 
       let blob = await loadFileFromLocal();
       await this.flashBlob(flashPartition, blob);
 
-      await this.erase(erasePartition);
+      //await this.erase(erasePartition);
 
+      console.log("resetting")
       await this.reset();
 
       return true;
