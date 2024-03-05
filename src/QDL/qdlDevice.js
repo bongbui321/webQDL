@@ -287,7 +287,7 @@ export class qdlDevice {
       let blob = await loadFileFromLocal();
       await this.flashBlob(flashPartition, blob);
 
-      //await this.erase(erasePartition);
+      await this.erase(erasePartition);
 
       console.log("resetting")
       await this.reset();

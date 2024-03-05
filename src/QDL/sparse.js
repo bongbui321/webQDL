@@ -104,8 +104,6 @@ export class QCSparse {
         console.error("Fill chunk should have 4 bytes of fill");
         return -1;
       } else {
-        //TODO delete this
-        console.log("blob value:", await readBlobAsBuffer(this.blob.slice(this.blobOffset - data_sz - 4, this.blobOffset + 4)));
         return blocks * this.blk_sz;
       }
     } else if (chunk_type == ChunkType.Skip) {
@@ -318,7 +316,6 @@ export async function* splitBlob(blob, splitSize = 1048576) {
   blob         = blob.slice(FILE_HEADER_SIZE);
 
   for (let i = 0; i < header.total_chunks; i++) {
-    console.log("At chunk:", i);
     let originalChunk  = await parseChunkHeader(blob.slice(0, CHUNK_HEADER_SIZE));
     originalChunk.data = blob.slice(CHUNK_HEADER_SIZE, CHUNK_HEADER_SIZE + originalChunk.dataBytes);
     blob = blob.slice(CHUNK_HEADER_SIZE + originalChunk.dataBytes);
@@ -347,9 +344,6 @@ export async function* splitBlob(blob, splitSize = 1048576) {
               dataBytes : isChunkTypeSkip ? 0 : toSend,
               data      : isChunkTypeSkip ? null : originalChunkData.slice(0, toSend),
             }
-            if (isChunkTypeFill) {
-              console.log("data of ChunkTypeFill:", await readBlobAsBuffer(originalChunk.data));
-            }
             chunksToProcess.push(tmpChunk);
             realBytesToWrite -= realSend;
           }
@@ -367,15 +361,10 @@ export async function* splitBlob(blob, splitSize = 1048576) {
         originalChunkData = originalChunkData?.slice(toSend);
       }
     } else { 
-      if (isChunkTypeFill) {
-        console.log("data of ChunkTypeFill:", await readBlobAsBuffer(originalChunk.data));
-      }
       chunksToProcess.push(originalChunk)
     }
     for (const chunk of chunksToProcess) {
       let splitImage = await createImage(header, [chunk]);
-      let splitChunkHeader = await parseChunkHeader(splitImage.slice(FILE_HEADER_SIZE, FILE_HEADER_SIZE + CHUNK_HEADER_SIZE));
-      console.log("splitchunktype:", splitChunkHeader.type);
       yield splitImage;
     }
   }

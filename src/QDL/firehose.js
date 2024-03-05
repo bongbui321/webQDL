@@ -337,7 +337,6 @@ export class Firehose {
   }
 
 
-  // TODO: remove testing infrastructure
   async cmdProgram(physicalPartitionNumber, startSector, blob, onProgress=()=>{}, test=true) {
     let total         = blob.size;
     let sparseformat  = false;
@@ -355,32 +354,22 @@ export class Firehose {
     if (total % this.cfg.SECTOR_SIZE_IN_BYTES != 0)
       numPartitionSectors += 1;
 
-    // TODO let rsp from start
-    let rsp;
-    if (!test) {
-      const data  = `<?xml version=\"1.0\" ?><data>\n` +
-                `<program SECTOR_SIZE_IN_BYTES=\"${this.cfg.SECTOR_SIZE_IN_BYTES}\"` +
-                ` num_partition_sectors=\"${numPartitionSectors}\"` +
-                ` physical_partition_number=\"${physicalPartitionNumber}\"` +
-                ` start_sector=\"${startSector}\" />\n</data>`;
-      rsp     = await this.xmlSend(data);
-    } else {
-      rsp = { resp : true };
-    }
+    const data  = `<?xml version=\"1.0\" ?><data>\n` +
+              `<program SECTOR_SIZE_IN_BYTES=\"${this.cfg.SECTOR_SIZE_IN_BYTES}\"` +
+              ` num_partition_sectors=\"${numPartitionSectors}\"` +
+              ` physical_partition_number=\"${physicalPartitionNumber}\"` +
+              ` start_sector=\"${startSector}\" />\n</data>`;
+    let rsp     = await this.xmlSend(data);
 
     let bytesWritten = 0;
-
-    const testImage = await loadFileFromLocal();
 
     for await (let split of Sparse.splitBlob(blob)) {
       let offset            = 0;
       let bytesToWriteSplit = split.size;
       let sparseSplit;
 
-      let chunkType;
       if (sparseformat) {
         let sparseSplitHeader = await Sparse.parseFileHeader(split.slice(0, Sparse.FILE_HEADER_SIZE));
-        chunkType = (await Sparse.parseChunkHeader(split.slice(Sparse.FILE_HEADER_SIZE, Sparse.FILE_HEADER_SIZE + 12))).type;
         sparseSplit = new Sparse.QCSparse(split, sparseSplitHeader);
         bytesToWriteSplit     = await sparseSplit.getSize();
       }
@@ -396,38 +385,12 @@ export class Firehose {
             wdata = new Uint8Array(await readBlobAsBuffer(split.slice(offset, offset + wlen)));
           }
 
-          const correctWdata = new Uint8Array(await readBlobAsBuffer(testImage.slice(bytesWritten, bytesWritten + wlen)));
-          const isEqual = correctWdata.length === wdata.length && wdata.every((value, index) => value === correctWdata[index]);
-
-          if (!isEqual) {
-            console.error("Wrong writing");
-            console.log("correct array length:", correctWdata.length);
-            console.log("extracted array length:", wdata.length);
-            console.log("correct array:", correctWdata.buffer);
-            console.log("extracted array:", wdata.buffer);
-            wdata.every((value, index) => {
-              let correct = value === correctWdata[index];
-              if (!correct) {
-                console.log("value:", correctWdata[index]);
-                console.log("wdata value:", value);
-                console.log("index:", index);
-              }
-            });
-            if (!(chunkType == 0xCAC2)) {
-              console.log(chunkType);
-              return false;
-            }
-          } else {
-            console.log("is equal:", isEqual);
-            console.log("wlen:", wlen);
-          }
-
           offset             += wlen;
           bytesToWriteSplit  -= wlen;
           bytesWritten       += wlen;
           onProgress(bytesWritten/total);
 
-          console.log("progress:", total - bytesWritten);
+          //console.log("progress:", total - bytesWritten);
 
           if (wlen % this.cfg.SECTOR_SIZE_IN_BYTES !== 0){
             let fillLen = (Math.floor(wlen/this.cfg.SECTOR_SIZE_IN_BYTES) * this.cfg.SECTOR_SIZE_IN_BYTES) +
@@ -436,24 +399,24 @@ export class Firehose {
             wdata = concatUint8Array([wdata, fillArray]);
           }
 
-          //await this.cdc.write(wdata);
-          //console.log(`Progress: ${Math.floor(offset/total)*100}%`);
-          //await this.cdc.write(new Uint8Array(0), null, true, true);
+          await this.cdc.write(wdata);
+          console.log(`Progress: ${Math.floor(offset/total)*100}%`);
+          await this.cdc.write(new Uint8Array(0), null, true, true);
         }
       }
 
-      //const wd  = await this.waitForData();
-      //const log = this.xml.getLog(wd);
-      //const resposne = this.xml.getReponse(wd);
-      //if (resposne.hasOwnProperty("value")) {
-      //  if (resposne["value"] !== "ACK") {
-      //    console.error("ERROR")
-      //    return false;
-      //  }
-      //} else {
-      //  console.error("Error:", resposne);
-      //  return false;
-      //}
+      const wd  = await this.waitForData();
+      const log = this.xml.getLog(wd);
+      const resposne = this.xml.getReponse(wd);
+      if (resposne.hasOwnProperty("value")) {
+        if (resposne["value"] !== "ACK") {
+          console.error("ERROR")
+          return false;
+        }
+      } else {
+        console.error("Error:", resposne);
+        return false;
+      }
     }
     return true;
   }
