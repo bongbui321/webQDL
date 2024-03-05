@@ -176,9 +176,9 @@ export class QCSparse {
         let fill_bin = new Uint8Array(buffer);
 
         const repetitions = Math.floor((blocks*this.blk_sz)/4);
-        let data = new Uint8Array(0);
-        for (let i = 0; i < repetitions; i++) {
-          data = concatUint8Array([data, fill_bin]);
+        let data = new Uint8Array(blocks*this.blk_sz);
+        for (let i = 0; i < blocks*this.blk; i+=4) {
+          data.set(fill_bin, i);
         }
         this.offset += blocks;
         return data;
@@ -358,20 +358,19 @@ export async function* splitBlob(blob, splitSize = 1048576) {
 
       while (bytesToWrite > 0) {
         const toSend = Math.min(safeToSend, bytesToWrite);
-
-        let tmpChunk = {
-          type        : originalChunk.type,
-          blocks      : toSend / header.blk_sz,
-          dataBytes   : isChunkTypeSkip ? 0 : toSend,
-          data        : isChunkTypeSkip ? null : originalChunkData.slice(0, toSend),
-        }
+        let tmpChunk;
 
         if (isChunkTypeFill || isChunkTypeSkip) {
           //let beforeReal = realBytesToWrite;
 
           while (realBytesToWrite > 0) {
             const realSend = Math.min(safeToSend, realBytesToWrite);
-            tmpChunk.blocks = realSend / header.blk_sz;
+            tmpChunk = {
+              type      : originalChunk.type,
+              blocks    : realSend / header.blk_sz,
+              dataBytes : isChunkTypeSkip ? 0 : toSend,
+              data      : isChunkTypeSkip ? null : originalChunkData.slice(0, toSend),
+            }
             chunksToProcess.push(tmpChunk);
             realBytesToWrite -= realSend;
 
@@ -379,7 +378,7 @@ export async function* splitBlob(blob, splitSize = 1048576) {
             //total_bytes += realSend;
             //total_bytes_not_raw += tmpChunk.blocks * header.blk_sz;
             total_check_blks += tmpChunk.blocks;
-            total_bytes_not_raw += tmpChunk.blocks * header.blk_sz;
+            total_bytes_not_raw += tmpChunk.blocks;
             chunks_to_process += 1;
             if (realSend % header.blk_sz != 0) {
               console.error("not divisible");
@@ -403,7 +402,13 @@ export async function* splitBlob(blob, splitSize = 1048576) {
 
         } else {
           //total_bytes += toSend;
-          total_bytes_raw += tmpChunk.blocks * header.blk_sz;
+          tmpChunk = {
+            type      : originalChunk.type,
+            blocks    : toSend / header.blk_sz,
+            dataBytes : isChunkTypeSkip ? 0 : toSend,
+            data      : isChunkTypeSkip ? null : originalChunkData.slice(0, toSend),
+          }
+          total_bytes_raw += tmpChunk.blocks;
           total_check_blks += tmpChunk.blocks;
           chunks_to_process += 1;
           chunksToProcess.push(tmpChunk);
@@ -422,15 +427,15 @@ export async function* splitBlob(blob, splitSize = 1048576) {
       }
     } else { 
       if (isChunkTypeSkip || isChunkTypeFill) {
-        total_bytes_not_raw += originalChunk.blocks*header.blk_sz;
+        total_bytes_not_raw += originalChunk.blocks;
       } else {
-        total_bytes_raw += originalChunk.blocks*header.blk_sz;
+        total_bytes_raw += originalChunk.blocks;
       } 
       total_check_blks += originalChunk.blocks;
       chunks_to_process +=1;
       chunksToProcess.push(originalChunk)
     }
-    for (let chunk of chunksToProcess) {
+    for (const chunk of chunksToProcess) {
       console.log("chunk:", chunk);
       if (chunk.type == ChunkType.Fill || chunk.type == ChunkType.Skip){
         create_blks_not_raw += chunk.blocks;
@@ -453,16 +458,22 @@ export async function* splitBlob(blob, splitSize = 1048576) {
   //console.log("totalBytes not raw:", total_bytes_not_raw);
   //console.log("totalBytes raw:", total_bytes_raw);
   //console.log("total_bytes:", total_bytes_not_raw + total_bytes_raw)
+
+  console.log("blocks not raw:", total_bytes_not_raw);
+  console.log("blocks raw:", total_bytes_raw);
+  console.log("total_blocks:", total_bytes_not_raw + total_bytes_raw)
+
   console.log("totalblocks appended:", total_check_blks);
   console.log("totalblocks create:", total_create_blks);
 
   console.log("create_blks_not_raw:", create_blks_not_raw);
   console.log("create_blks_raw:", create_blks_raw);
+  console.log("total blocks from create:", create_blks_not_raw + create_blks_raw);
 
 
   //console.log("chunks_to_process:", chunks_to_process);
   //console.log("chunks_create:", chunks_create);
-  console.log("totalBytes2:", total_bytes2);
+  //console.log("totalBytes2:", total_bytes2);
   console.log("create_blk_sz:", create_header_sz);
   console.log("header_blk_sz:", header.blk_sz);
 }
