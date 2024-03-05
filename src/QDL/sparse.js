@@ -11,7 +11,8 @@ const ChunkType = {
   Crc32 : 0xCAC4,
 }
 
-async function parseChunkHeader(blobChunkHeader) {
+//TODO: remove export
+export async function parseChunkHeader(blobChunkHeader) {
   let chunkHeader  = await readBlobAsBuffer(blobChunkHeader);
   let view         = new DataView(chunkHeader);
   return {
@@ -49,7 +50,7 @@ export async function parseFileHeader(blobHeader) {
     return null;
   }
 
-  console.log("Sparse format detected. Using unpacked image.");
+  //console.log("Sparse format detected. Using unpacked image.");
   return {
     magic         : magic, 
     major_version : major_version,
@@ -91,31 +92,30 @@ export class QCSparse {
     const data_sz    = chunkHeader.dataBytes;
     this.blobOffset += CHUNK_HEADER_SIZE + data_sz;
 
-    //TODO: change to output one output only right now it output raw and nonraw count
     if (chunk_type == ChunkType.Raw) {
       if (data_sz != (blocks*this.blk_sz)) {
         console.error("Rase chunk input size does not match output size");
         return -1;
       } else {
-        return [data_sz, data_sz, 0];
+        return data_sz;
       }
     } else if (chunk_type == ChunkType.Fill) {
       if (data_sz != 4) {
         console.error("Fill chunk should have 4 bytes of fill");
         return -1;
       } else {
-        return [blocks * this.blk_sz, 0, blocks*this.blk_sz];
+        //TODO delete this
+        console.log("blob value:", await readBlobAsBuffer(this.blob.slice(this.blobOffset - data_sz - 4, this.blobOffset + 4)));
+        return blocks * this.blk_sz;
       }
     } else if (chunk_type == ChunkType.Skip) {
-      return [blocks * this.blk_sz, 0, blocks*this.blk_sz];
+      return blocks * this.blk_sz;
     } else if (chunk_type == ChunkType.Crc32) {
       if (data_sz != 4) {
         console.error("CRC32 chunk should have 4 bytes of CRC");
         return -1;
       } else {
-        console.error("got in crc32");
-        throw new Error();
-        return [0, 0, 0];
+        return 0;
       }
     } else {
       console.error("Unknown chunk type");
@@ -127,18 +127,15 @@ export class QCSparse {
   async getSize() {
     this.blobOffset = FILE_HEADER_SIZE;
     let length = 0, chunk = 0;
-    let total_raw = 0, total_not_raw = 0;
     while (chunk < this.total_chunks) {
-      let [tlen, raw, not_raw] = await this.getChunkSize();
+      let tlen = await this.getChunkSize();
       if (tlen == -1)
         break;
       length += tlen;
-      total_raw += raw;
-      total_not_raw += not_raw
       chunk += 1;
     }
     this.blobOffset = FILE_HEADER_SIZE;
-    return [length, total_raw, total_not_raw];
+    return length;
   }
 
 
@@ -153,15 +150,12 @@ export class QCSparse {
     const chunk_type = chunkHeader.type;
     const blocks     = chunkHeader.blocks;
     const data_sz    = chunkHeader.dataBytes;
-    console.log("chunk_type:", chunk_type);
-    console.log("size:", this.blk_sz * blocks);
 
     if (chunk_type == ChunkType.Raw) {
       if (data_sz != (blocks*this.blk_sz)) {
         console.error("Rase chunk input size does not match output size");
         return -1;
       } else {
-        console.log("before read in raw type");
         const buffer  = await readBlobAsBuffer(this.blob.slice(this.blobOffset, this.blobOffset += data_sz));
         const data = new Uint8Array(buffer);
         this.offset += blocks;
@@ -244,12 +238,6 @@ class BlobBuilder {
 async function createImage(header, chunks) {
   let blobBuilder = new BlobBuilder();
 
-  if (chunks.length > 1) {
-    console.error("supposed to be only one chunk");
-    throw new Error();
-  }
-  console.log("chunk in createimage:", chunks[0]);
-
   let buffer = new ArrayBuffer(FILE_HEADER_SIZE);
   let dataView = new DataView(buffer);
   let arrayView = new Uint8Array(buffer);
@@ -325,22 +313,12 @@ export async function* splitBlob(blob, splitSize = 1048576) {
     return;
   }
 
-  let header = await parseFileHeader(blob.slice(0, FILE_HEADER_SIZE));
+  let header   = await parseFileHeader(blob.slice(0, FILE_HEADER_SIZE));
   header.crc32 = 0;
-  blob = blob.slice(FILE_HEADER_SIZE);
-
-  let total_bytes_not_raw  = 0;
-  let total_bytes_raw      = 0;
-  let total_bytes2         = 0;
-  let total_check_blks     = 0;
-  let total_create_blks    = 0;
-  let chunks_to_process    = 0;
-  let chunks_create        = 0;
-  let create_header_sz     = 0;
-  let create_blks_not_raw  = 0;
-  let create_blks_raw      = 0;
+  blob         = blob.slice(FILE_HEADER_SIZE);
 
   for (let i = 0; i < header.total_chunks; i++) {
+    console.log("At chunk:", i);
     let originalChunk  = await parseChunkHeader(blob.slice(0, CHUNK_HEADER_SIZE));
     originalChunk.data = blob.slice(CHUNK_HEADER_SIZE, CHUNK_HEADER_SIZE + originalChunk.dataBytes);
     blob = blob.slice(CHUNK_HEADER_SIZE + originalChunk.dataBytes);
@@ -361,8 +339,6 @@ export async function* splitBlob(blob, splitSize = 1048576) {
         let tmpChunk;
 
         if (isChunkTypeFill || isChunkTypeSkip) {
-          //let beforeReal = realBytesToWrite;
-
           while (realBytesToWrite > 0) {
             const realSend = Math.min(safeToSend, realBytesToWrite);
             tmpChunk = {
@@ -371,109 +347,36 @@ export async function* splitBlob(blob, splitSize = 1048576) {
               dataBytes : isChunkTypeSkip ? 0 : toSend,
               data      : isChunkTypeSkip ? null : originalChunkData.slice(0, toSend),
             }
+            if (isChunkTypeFill) {
+              console.log("data of ChunkTypeFill:", await readBlobAsBuffer(originalChunk.data));
+            }
             chunksToProcess.push(tmpChunk);
             realBytesToWrite -= realSend;
-
-            //sanity check
-            //total_bytes += realSend;
-            //total_bytes_not_raw += tmpChunk.blocks * header.blk_sz;
-            total_check_blks += tmpChunk.blocks;
-            total_bytes_not_raw += tmpChunk.blocks;
-            chunks_to_process += 1;
-            if (realSend % header.blk_sz != 0) {
-              console.error("not divisible");
-              return;
-            }
           }
-
-          if (realBytesToWrite != 0) {
-            console.error("wrong in chunking realBytesToWrite");
-            console.log("type:", tmpChunk.type);
-            console.log("databytes:", tmpChunk.dataBytes);
-            console.log("blocks:", tmpChunk.blocks);
-            console.log("size:", tmpChunk.blocks*header.blk_sz);
-            console.log("bytesToWrite:", realBytesToWrite);
-            return;
-          }
-          //if (total_bytes_not_raw != beforeReal) {
-          //  console.error("wrong in chunking");
-          //  return;
-          //}
-
         } else {
-          //total_bytes += toSend;
           tmpChunk = {
             type      : originalChunk.type,
             blocks    : toSend / header.blk_sz,
             dataBytes : isChunkTypeSkip ? 0 : toSend,
             data      : isChunkTypeSkip ? null : originalChunkData.slice(0, toSend),
           }
-          total_bytes_raw += tmpChunk.blocks;
-          total_check_blks += tmpChunk.blocks;
-          chunks_to_process += 1;
           chunksToProcess.push(tmpChunk);
         }
 
         bytesToWrite -= toSend;
         originalChunkData = originalChunkData?.slice(toSend);
       }
-      if (bytesToWrite != 0 ) {
-        console.error("wrong in chunking bytesToWrit");
-        console.log("type:", originalChunk.type);
-        console.log("databytes:", originalChunk.dataBytes);
-        console.log("blocks:", originalChunk.blocks);
-        console.log("bytesToWrite:", bytesToWrite);
-        return;
-      }
     } else { 
-      if (isChunkTypeSkip || isChunkTypeFill) {
-        total_bytes_not_raw += originalChunk.blocks;
-      } else {
-        total_bytes_raw += originalChunk.blocks;
-      } 
-      total_check_blks += originalChunk.blocks;
-      chunks_to_process +=1;
+      if (isChunkTypeFill) {
+        console.log("data of ChunkTypeFill:", await readBlobAsBuffer(originalChunk.data));
+      }
       chunksToProcess.push(originalChunk)
     }
     for (const chunk of chunksToProcess) {
-      console.log("chunk:", chunk);
-      if (chunk.type == ChunkType.Fill || chunk.type == ChunkType.Skip){
-        create_blks_not_raw += chunk.blocks;
-      } else {
-        create_blks_raw += chunk.blocks;
-      }
-      // TODO: combine chunks
       let splitImage = await createImage(header, [chunk]);
-
-      // TODO: remove this
-      let header_splitImage = await parseFileHeader(splitImage.slice(0, FILE_HEADER_SIZE));
-      total_create_blks += header_splitImage.total_blks;
-      total_bytes2 += header_splitImage.total_blks * header_splitImage.blk_sz;
-      chunks_create += 1;
-      create_header_sz = header_splitImage.blk_sz;
-
+      let splitChunkHeader = await parseChunkHeader(splitImage.slice(FILE_HEADER_SIZE, FILE_HEADER_SIZE + CHUNK_HEADER_SIZE));
+      console.log("splitchunktype:", splitChunkHeader.type);
       yield splitImage;
     }
   }
-  //console.log("totalBytes not raw:", total_bytes_not_raw);
-  //console.log("totalBytes raw:", total_bytes_raw);
-  //console.log("total_bytes:", total_bytes_not_raw + total_bytes_raw)
-
-  console.log("blocks not raw:", total_bytes_not_raw);
-  console.log("blocks raw:", total_bytes_raw);
-  console.log("total_blocks:", total_bytes_not_raw + total_bytes_raw)
-
-  console.log("totalblocks appended:", total_check_blks);
-  console.log("totalblocks create:", total_create_blks);
-
-  console.log("create_blks_not_raw:", create_blks_not_raw);
-  console.log("create_blks_raw:", create_blks_raw);
-  console.log("total blocks from create:", create_blks_not_raw + create_blks_raw);
-
-
-  //console.log("chunks_to_process:", chunks_to_process);
-  //console.log("chunks_create:", chunks_create);
-  //console.log("totalBytes2:", total_bytes2);
-  console.log("create_blk_sz:", create_header_sz);
-  console.log("header_blk_sz:", header.blk_sz);
 }

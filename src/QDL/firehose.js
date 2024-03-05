@@ -1,5 +1,5 @@
 import { xmlParser } from "./xmlParser"
-import { concatUint8Array, containsBytes, compareStringToBytes, sleep, readBlobAsBuffer } from "./utils"
+import { concatUint8Array, containsBytes, compareStringToBytes, sleep, loadFileFromLocal, readBlobAsBuffer } from "./utils"
 import { gpt } from "./gpt"
 import * as Sparse from "./sparse";
 
@@ -337,49 +337,54 @@ export class Firehose {
   }
 
 
-  //TODO: remove multiple output from getsize()
-  async cmdProgram(physicalPartitionNumber, startSector, blob, onProgress=()=>{}) {
+  // TODO: remove testing infrastructure
+  async cmdProgram(physicalPartitionNumber, startSector, blob, onProgress=()=>{}, test=true) {
     let total         = blob.size;
-    let sparseformat  = false
+    let sparseformat  = false;
 
     let sparseHeader = await Sparse.parseFileHeader(blob.slice(0, Sparse.FILE_HEADER_SIZE));
     let sparseImage;
-    let total_raw, total_not_raw;
     if (sparseHeader !== null) {
       sparseImage   = new Sparse.QCSparse(blob, sparseHeader)
       sparseformat  = true;
-      [total, total_raw, total_not_raw]         = await sparseImage.getSize();
+      total         = await sparseImage.getSize();
       console.log("size of image:", total);
     }
 
     let numPartitionSectors = Math.floor(total/this.cfg.SECTOR_SIZE_IN_BYTES);
-
     if (total % this.cfg.SECTOR_SIZE_IN_BYTES != 0)
       numPartitionSectors += 1;
 
-    const data  = `<?xml version=\"1.0\" ?><data>\n` +
-              `<program SECTOR_SIZE_IN_BYTES=\"${this.cfg.SECTOR_SIZE_IN_BYTES}\"` +
-              ` num_partition_sectors=\"${numPartitionSectors}\"` +
-              ` physical_partition_number=\"${physicalPartitionNumber}\"` +
-              ` start_sector=\"${startSector}\" />\n</data>`;
-    let rsp     = await this.xmlSend(data);
+    // TODO let rsp from start
+    let rsp;
+    if (!test) {
+      const data  = `<?xml version=\"1.0\" ?><data>\n` +
+                `<program SECTOR_SIZE_IN_BYTES=\"${this.cfg.SECTOR_SIZE_IN_BYTES}\"` +
+                ` num_partition_sectors=\"${numPartitionSectors}\"` +
+                ` physical_partition_number=\"${physicalPartitionNumber}\"` +
+                ` start_sector=\"${startSector}\" />\n</data>`;
+      rsp     = await this.xmlSend(data);
+    } else {
+      rsp = { resp : true };
+    }
 
     let bytesWritten = 0;
-    let total_size_splits = 0;
+
+    const testImage = await loadFileFromLocal();
+
     for await (let split of Sparse.splitBlob(blob)) {
-      let offset  = 0;
+      let offset            = 0;
       let bytesToWriteSplit = split.size;
       let sparseSplit;
+
+      let chunkType;
       if (sparseformat) {
-        console.log("ready to parse split");
         let sparseSplitHeader = await Sparse.parseFileHeader(split.slice(0, Sparse.FILE_HEADER_SIZE));
-        console.log("ready to create new sparse");
+        chunkType = (await Sparse.parseChunkHeader(split.slice(Sparse.FILE_HEADER_SIZE, Sparse.FILE_HEADER_SIZE + 12))).type;
         sparseSplit = new Sparse.QCSparse(split, sparseSplitHeader);
-        console.log("ready to get size");
-        let raw, not_raw;
-        [bytesToWriteSplit, raw, not_raw] = await sparseSplit.getSize();
-        total_size_splits += bytesToWriteSplit;
+        bytesToWriteSplit     = await sparseSplit.getSize();
       }
+
       if (rsp.resp) {
         while (bytesToWriteSplit > 0) {
           let wlen = Math.min(bytesToWriteSplit, this.cfg.MaxPayloadSizeToTargetInBytes);
@@ -391,14 +396,38 @@ export class Firehose {
             wdata = new Uint8Array(await readBlobAsBuffer(split.slice(offset, offset + wlen)));
           }
 
+          const correctWdata = new Uint8Array(await readBlobAsBuffer(testImage.slice(bytesWritten, bytesWritten + wlen)));
+          const isEqual = correctWdata.length === wdata.length && wdata.every((value, index) => value === correctWdata[index]);
+
+          if (!isEqual) {
+            console.error("Wrong writing");
+            console.log("correct array length:", correctWdata.length);
+            console.log("extracted array length:", wdata.length);
+            console.log("correct array:", correctWdata.buffer);
+            console.log("extracted array:", wdata.buffer);
+            wdata.every((value, index) => {
+              let correct = value === correctWdata[index];
+              if (!correct) {
+                console.log("value:", correctWdata[index]);
+                console.log("wdata value:", value);
+                console.log("index:", index);
+              }
+            });
+            if (!(chunkType == 0xCAC2)) {
+              console.log(chunkType);
+              return false;
+            }
+          } else {
+            console.log("is equal:", isEqual);
+            console.log("wlen:", wlen);
+          }
+
           offset             += wlen;
           bytesToWriteSplit  -= wlen;
           bytesWritten       += wlen;
-
-          //console.log(wdata);
-          console.log("progress:", total - bytesWritten);
-
           onProgress(bytesWritten/total);
+
+          console.log("progress:", total - bytesWritten);
 
           if (wlen % this.cfg.SECTOR_SIZE_IN_BYTES !== 0){
             let fillLen = (Math.floor(wlen/this.cfg.SECTOR_SIZE_IN_BYTES) * this.cfg.SECTOR_SIZE_IN_BYTES) +
@@ -411,11 +440,6 @@ export class Firehose {
           //console.log(`Progress: ${Math.floor(offset/total)*100}%`);
           //await this.cdc.write(new Uint8Array(0), null, true, true);
         }
-      }
-      if (bytesToWriteSplit != 0) {
-        console.error("error in writing wlen");
-        console.log(bytesToWriteSplit);
-        return;
       }
 
       //const wd  = await this.waitForData();
@@ -431,11 +455,6 @@ export class Firehose {
       //  return false;
       //}
     }
-    console.log("ready to return from cmdProgram()");
-    console.log("total_raw:", total_raw);
-    console.log("total_not_raw:", total_not_raw);
-    console.log("total:", total_raw + total_not_raw);
-    console.log('bytesToWriteSplit:', total_size_splits);
     return true;
   }
 
