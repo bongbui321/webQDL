@@ -274,7 +274,7 @@ export class qdlDevice {
   // TODO: run() is for testing, will be deleted so that qdl.js is a module
   async run() {
     try {
-      let flashPartition = "boot";
+      let flashPartition = "system_a";
       let erasePartition = "cache";
 
       await this.toCmdMode();
@@ -285,12 +285,12 @@ export class qdlDevice {
       let [slotCount, partitions] = await this.getDevicePartitions();
       console.log("isRecognizedDevice:", isRecognizedDevice(slotCount, partitions));
 
-      //let blob = await loadFileFromLocal();
-      //await this.flashBlob(flashPartition, blob);
+      let blob = await loadFileFromLocal();
+      await this.flashBlob(flashPartition, blob);
 
       //await this.erase(erasePartition);
 
-      await this.setActvieSlot("b");
+      await this.setActvieSlot("a");
 
       console.log("resetting")
       await this.reset();

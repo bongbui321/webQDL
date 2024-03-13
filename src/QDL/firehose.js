@@ -128,6 +128,7 @@ export class Firehose {
         return await this.configure(lvl+1);
       }
     } else {
+      // TODO: delete if not needed
       if (typeof rsp.resp === "object") {
         let field = rsp.resp;
         if (field.hasOwnProperty("MaxPayloadSizeToTargetInBytes")) {
@@ -407,25 +408,25 @@ export class Firehose {
             const fillArray = new Uint8Array(fillLen-wlen).fill(0x00);
             wdata = concatUint8Array([wdata, fillArray]);
           }
-
           await this.cdc.write(wdata);
-          console.log(`Progress: ${Math.floor(offset/total)*100}%`);
+          //console.log(`Progress: ${Math.floor(offset/total)*100}%`);
           await this.cdc.write(new Uint8Array(0), null, true, true);
         }
       }
-
-      const wd  = await this.waitForData();
-      const log = this.xml.getLog(wd);
-      const resposne = this.xml.getReponse(wd);
-      if (resposne.hasOwnProperty("value")) {
-        if (resposne["value"] !== "ACK") {
-          console.error("ERROR")
-          return false;
-        }
-      } else {
-        console.error("Error:", resposne);
+    }
+    console.log("waiting");
+    const wd  = await this.waitForData();
+    console.log("finish waiting")
+    const log = this.xml.getLog(wd);
+    const resposne = this.xml.getReponse(wd);
+    if (resposne.hasOwnProperty("value")) {
+      if (resposne["value"] !== "ACK") {
+        console.error("ERROR")
         return false;
       }
+    } else {
+      console.error("Error:", resposne);
+      return false;
     }
     return true;
   }
