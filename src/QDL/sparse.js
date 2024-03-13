@@ -11,8 +11,7 @@ const ChunkType = {
   Crc32 : 0xCAC4,
 }
 
-//TODO: remove export
-export async function parseChunkHeader(blobChunkHeader) {
+async function parseChunkHeader(blobChunkHeader) {
   let chunkHeader  = await readBlobAsBuffer(blobChunkHeader);
   let view         = new DataView(chunkHeader);
   return {

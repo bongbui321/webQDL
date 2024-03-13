@@ -90,10 +90,10 @@ export class qdlDevice {
         imgSectors += 1;
       if (partitionName.toLowerCase() !== "gpt") {
         const partition = dp[2];
-        //if (imgSectors > partition.sectors) {
-        //  console.error("partition has fewer sectors compared to the flashing image");
-        //  return false;
-        //}
+        if (imgSectors > partition.sectors) {
+          console.error("partition has fewer sectors compared to the flashing image");
+          return false;
+        }
         startSector = partition.sector;
         console.log(`Flashing ${partitionName}...`);
         if (await this.firehose.cmdProgram(lun, startSector, blob, onProgress)) {
@@ -187,7 +187,8 @@ export class qdlDevice {
       for (const partitionName in guidGpt.partentries) {
         const slot = partitionName.slice(-2);
         const partition = guidGpt.partentries[partitionName];
-        const active = (((BigInt(partition.flags) >> (BigInt(AB_FLAG_OFFSET) * BigInt(8))) & BigInt(0xFF)) & BigInt(AB_PARTITION_ATTR_SLOT_ACTIVE)) === BigInt(AB_PARTITION_ATTR_SLOT_ACTIVE);
+        const active = (((BigInt(partition.flags) >> (BigInt(AB_FLAG_OFFSET) * BigInt(8))))
+                      & BigInt(AB_PARTITION_ATTR_SLOT_ACTIVE)) === BigInt(AB_PARTITION_ATTR_SLOT_ACTIVE);
         if (slot == "_a" && active) {
           return "a";
         } else if (slot == "_b" && active) {
@@ -284,10 +285,12 @@ export class qdlDevice {
       let [slotCount, partitions] = await this.getDevicePartitions();
       console.log("isRecognizedDevice:", isRecognizedDevice(slotCount, partitions));
 
-      let blob = await loadFileFromLocal();
-      await this.flashBlob(flashPartition, blob);
+      //let blob = await loadFileFromLocal();
+      //await this.flashBlob(flashPartition, blob);
 
-      await this.erase(erasePartition);
+      //await this.erase(erasePartition);
+
+      await this.setActvieSlot("b");
 
       console.log("resetting")
       await this.reset();
