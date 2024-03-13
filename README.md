@@ -7,6 +7,7 @@ First popup: select appropriate loader for your device.<br />
 Leeco phone (msm9886pro): `0005f0e100000000_b155b8bf19297f47_fhprg_peek.bin`
 <br />
 SnapDrag845 Loader: `0008e0e100000000_afca69d4235117e5_fhprg.bin`<br />
+Another for SnapDrag 845: `6000000000010000_f8ab20526358c4fa_fhprg.bin` <br />
 <br />
 Second popup: select `boot.img` file.<br />
 <br />
