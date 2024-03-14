@@ -73,7 +73,7 @@ export class qdlDevice {
   }
 
 
-  async flashBlob(partitionName, blob, onProgress) {
+  async flashBlob(partitionName, blob, onProgress=(_progress)=>{}) {
     if (this.mode !== "firehose") {
       console.error("Please try again, must be in command mode to flash")
       return false;
@@ -96,7 +96,7 @@ export class qdlDevice {
         }
         startSector = partition.sector;
         console.log(`Flashing ${partitionName}...`);
-        if (await this.firehose.cmdProgram(lun, startSector, blob, onProgress)) {
+        if (await this.firehose.cmdProgram(lun, startSector, blob, (progress) => onProgress(progress))) {
           console.log(`partition ${partitionName}: startSector ${partition.sector}, sectors ${partition.sectors}`);
         } else {
           console.error("Error writing image");
@@ -132,6 +132,33 @@ export class qdlDevice {
         console.log(`Couldn't erase partition ${partitionName}. Either wrong type or not in lun ${lun}`);
         continue;
       }
+    }
+    return true;
+  }
+
+
+  async resetUserdata() {
+    if (this.mode !== "firehose") {
+      console.error("Please try again, must be in command mode to flash")
+      return false;
+    }
+
+    let dp = await this.firehose?.detectPartition("userdata");
+    const found = dp[0];
+    if (found) {
+      const lun = dp[0], partition = dp[1];
+      const wData = new TextEncoder().encode("COMMA_ABL_RESET");
+      const startSector = partition.sector;
+      console.log("Writing reset flag to partition \"userdata\"");
+      if (await this.firehose.cmdProgram(lun, startSector, new Blob(wData.buffer, onProgress))) {
+        console.log("Successfully writing reset flag to userdata");
+      } else {
+        console.error("Error writing reset flag to userdata");
+        return false;
+      }
+    } else {
+      console.error("Can't find partition userdata");
+      return false;
     }
     return true;
   }
@@ -291,7 +318,7 @@ export class qdlDevice {
 
       //await this.erase(erasePartition);
 
-      await this.setActvieSlot(newSlot);
+      //await this.setActvieSlot(newSlot);
 
       console.log("resetting")
       await this.reset();
