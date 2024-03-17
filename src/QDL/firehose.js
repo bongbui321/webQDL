@@ -410,6 +410,7 @@ export class Firehose {
             // ??? why do I need this for sparse? maybe because I split and doesn't fill the whole data?
             if (sparseformat && bytesWritten < total)
               await this.cdc.write(new Uint8Array(0), null, true, true);
+            console.log(total-bytesWritten);
 
             if (i % 10 === 0)
               onProgress(bytesWritten/total);
