@@ -356,6 +356,10 @@ async function populate(chunks, blockSize) {
   return new Blob([ret.buffer]);
 }
 
+function calcChunksSize(chunks, blockSize) {
+  chunks.map((chunk) => calcChunksRealDataBytes(chunk)).reduce((total, c) => total + c, 0);
+}
+
 
 export async function* splitBlob(blob, splitSize = 104857600) {
   const safeToSend = splitSize;

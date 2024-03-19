@@ -314,11 +314,12 @@ export class qdlDevice {
       console.log("isRecognizedDevice:", isRecognizedDevice(slotCount, partitions));
 
       let blob = await loadFileFromLocal();
-      await this.flashBlob(flashPartition+newSlot, blob);
+      //await this.flashBlob(flashPartition+newSlot, blob);
+      await this.flashBlob('system_a', blob);
 
       //await this.erase(erasePartition);
 
-      await this.setActvieSlot(newSlot);
+      //await this.setActvieSlot(newSlot);
 
       await this.reset();
 
