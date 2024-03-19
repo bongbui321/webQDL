@@ -299,26 +299,76 @@ function calcChunksRealDataBytes(chunk, blockSize) {
   }
 }
 
+function calcChunksBlocks(chunks) {
+  return chunks.map((chunk) => chunk.blocks).reduce((total, c) => total + c, 0);
+}
 
-export async function* splitBlob(blob, splitSize = 1048576) {
+
+async function populate(chunks, blockSize) {
+  const nBlocks = calcChunksBlocks(chunks);
+  let ret       = new Uint8Array(nBlocks*blockSize);
+  let offset    = 0;
+
+  for (const chunk of chunks) {
+    const chunk_type = chunk.type;
+    const blocks     = chunk.blocks;
+    const data_sz    = chunk.dataBytes;
+    const data       = chunk.data;
+
+    if (chunk_type == ChunkType.Raw) {
+      if (data_sz != (blocks*blockSize)) {
+        console.error("Rase chunk input size does not match output size");
+        return -1;
+      } else {
+        let rawData = new Uint8Array(await readBlobAsBuffer(data));
+        ret.set(rawData, offset);
+        offset += blocks*blockSize;
+      }
+    } else if (chunk_type == ChunkType.Fill) {
+      if (data_sz != 4) {
+        console.error("Fill chunk should have 4 bytes of fill");
+        return -1;
+      } else {
+        const fill_bin = new Uint8Array(await readBlobAsBuffer(data));
+        const bufferSize = blocks*blockSize;
+        for (let i = 0; i < bufferSize; i+=data_sz) {
+          ret.set(fill_bin, offset);
+          offset += data_sz;
+        }
+      }
+    } else if (chunk_type == ChunkType.Skip) {
+      let byteToSend = blocks*this.blk_sz;
+      let skipData = new Uint8Array(byteToSend).fill(0);
+      ret.set(skipData, offset);
+      offset += byteToSend;
+    } else if (chunk_type == ChunkType.Crc32) {
+      if (data_sz != 4) {
+        console.error("CRC32 chunk should have 4 bytes of CRC");
+        return -1;
+      } else {
+        continue;
+      }
+    } else {
+      console.error("Unknown chunk type");
+      return -1;
+    }
+  }
+  return new Blob([ret.buffer]);
+}
+
+
+export async function* splitBlob(blob, splitSize = 104857600) {
   const safeToSend = splitSize;
 
-  if (blob.size <= MAX_DOWNLOAD_SIZE) {
+  let header = await parseFileHeader(blob.slice(0, FILE_HEADER_SIZE));
+  if (header === null || blob.size <= MAX_DOWNLOAD_SIZE) {
     yield blob;
     return;
   }
-
-  let header   = await parseFileHeader(blob.slice(0, FILE_HEADER_SIZE));
-  if (header === null) {
-    yield blob;
-    return;
-  }
-
   header.crc32 = 0;
   blob         = blob.slice(FILE_HEADER_SIZE);
 
-
-
+  let splitChunks = [];
   for (let i = 0; i < header.total_chunks; i++) {
     let originalChunk  = await parseChunkHeader(blob.slice(0, CHUNK_HEADER_SIZE));
     originalChunk.data = blob.slice(CHUNK_HEADER_SIZE, CHUNK_HEADER_SIZE + originalChunk.dataBytes);
@@ -331,7 +381,6 @@ export async function* splitBlob(blob, splitSize = 1048576) {
     const isChunkTypeFill = originalChunk.type == ChunkType.Fill;
 
     if (realBytesToWrite > safeToSend) {
-      
       let bytesToWrite      = isChunkTypeSkip ? 1 : originalChunk.dataBytes;
       let originalChunkData = originalChunk.data;
 
@@ -346,7 +395,7 @@ export async function* splitBlob(blob, splitSize = 1048576) {
               type      : originalChunk.type,
               blocks    : realSend / header.blk_sz,
               dataBytes : isChunkTypeSkip ? 0 : toSend,
-              data      : isChunkTypeSkip ? null : originalChunkData.slice(0, toSend),
+              data      : isChunkTypeSkip ? new Blob([]) : originalChunkData.slice(0, toSend),
             }
             chunksToProcess.push(tmpChunk);
             realBytesToWrite -= realSend;
@@ -355,8 +404,8 @@ export async function* splitBlob(blob, splitSize = 1048576) {
           tmpChunk = {
             type      : originalChunk.type,
             blocks    : toSend / header.blk_sz,
-            dataBytes : isChunkTypeSkip ? 0 : toSend,
-            data      : isChunkTypeSkip ? null : originalChunkData.slice(0, toSend),
+            dataBytes : toSend,
+            data      : originalChunkData.slice(0, toSend),
           }
           chunksToProcess.push(tmpChunk);
         }
@@ -368,8 +417,17 @@ export async function* splitBlob(blob, splitSize = 1048576) {
       chunksToProcess.push(originalChunk)
     }
     for (const chunk of chunksToProcess) {
-      let splitImage = await createImage(header, [chunk]);
-      yield splitImage;
+      const remainingBytes = splitSize - calcChunksSize(splitChunks);
+      const realChunkBytes = calcChunksRealDataBytes(chunk);
+      if (remainingBytes >= realChunkBytes) {
+        splitChunks.push(chunk);
+      } else {
+        yield await populate(splitChunks, header.blk_sz);
+        splitChunks = [chunk];
+      }
+    }
+    if (splitChunks.length > 0 ) {
+      yield await populate(splitChunks, header.blk_sz);
     }
   }
 }
