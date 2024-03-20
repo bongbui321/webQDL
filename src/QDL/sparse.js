@@ -361,7 +361,7 @@ function calcChunksSize(chunks, blockSize) {
 }
 
 
-export async function* splitBlob(blob, splitSize = 104857600) {
+export async function* splitBlob(blob, splitSize = 1048576) {
   const safeToSend = splitSize;
 
   let header = await parseFileHeader(blob.slice(0, FILE_HEADER_SIZE));
@@ -430,8 +430,9 @@ export async function* splitBlob(blob, splitSize = 104857600) {
         splitChunks = [chunk];
       }
     }
-    if (splitChunks.length > 0 ) {
-      yield await populate(splitChunks, header.blk_sz);
-    }
   }
+  if (splitChunks.length > 0 ) {
+    yield await populate(splitChunks, header.blk_sz);
+  }
+  console.log('[hell yeah] finishes')
 }

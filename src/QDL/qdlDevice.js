@@ -315,10 +315,12 @@ export class qdlDevice {
 
       let blob = await loadFileFromLocal();
       //await this.flashBlob(flashPartition+newSlot, blob);
+      let start = performance.now();
       await this.flashBlob('system_a', blob);
+      let end = performance.now();
+      console.log("Flashing time:", (end-start)/(1000*60));
 
       //await this.erase(erasePartition);
-
       //await this.setActvieSlot(newSlot);
 
       await this.reset();
